@@ -66,17 +66,22 @@ def all_equal_length(*arrays):
             if length is not None and len(arr) != length:
                 return False
             length = len(arr)
-        except TypeError:  # continue if `arr` has no len method. constants and None are excluded from length check
+        except (
+            TypeError
+        ):  # continue if `arr` has no len method. constants and None are excluded from length check
             pass
     return True
 
 
 def valid_elements_for_evaluation(
-        reference_arrays: List[Union[np.array, pd.Series, List[Union[int, float]]]],
-        arrays: List[Optional[Union[int, float, np.array, pd.Series, List[Union[int, float]]]]],
-        reference_array_names: str,
-        drop_leading_only: bool,
-        keep_inf: bool):
+    reference_arrays: List[Union[np.array, pd.Series, List[Union[int, float]]]],
+    arrays: List[
+        Optional[Union[int, float, np.array, pd.Series, List[Union[int, float]]]]
+    ],
+    reference_array_names: str,
+    drop_leading_only: bool,
+    keep_inf: bool,
+):
     """Keeps finite elements from reference_array, and corresponding elements in *arrays.
 
     Parameters
@@ -106,7 +111,9 @@ def valid_elements_for_evaluation(
     if len(reference_arrays) == 0:
         return reference_arrays + arrays
 
-    reference_arrays = [np.array(reference_array) for reference_array in reference_arrays]
+    reference_arrays = [
+        np.array(reference_array) for reference_array in reference_arrays
+    ]
     array_length = reference_arrays[0].shape[0]
 
     # Defines a function to perform the opposite of `numpy.isnan`.
@@ -136,10 +143,14 @@ def valid_elements_for_evaluation(
         # this will be the minimum.
         valid_indices = [np.where(array)[0] for array in keep]
         heading_lengths = [
-            length[0] if length.shape[0] > 0 else array_length for length in valid_indices]
+            length[0] if length.shape[0] > 0 else array_length
+            for length in valid_indices
+        ]
         heading_length = min(heading_lengths)
         # Generates arrays with the is_heading flag.
-        is_not_heading = np.repeat([False, True], [heading_length, array_length - heading_length])
+        is_not_heading = np.repeat(
+            [False, True], [heading_length, array_length - heading_length]
+        )
     else:
         is_not_heading = np.repeat([False, True], [array_length, 0])
     keep = np.logical_and.reduce(keep, axis=0)
@@ -151,13 +162,16 @@ def valid_elements_for_evaluation(
         warnings.warn(f"There are 0 non-null elements for evaluation.")
     if num_removed > 0:
         warnings.warn(
-            f"{num_removed} value(s) in {reference_array_names} were {removed_elements} and are omitted in error calc.")
+            f"{num_removed} value(s) in {reference_array_names} were {removed_elements} and are omitted in error calc."
+        )
 
     # Keeps these indices in all arrays. Leaves float, int, and None as-is
-    return [array[keep] for array in reference_arrays] + [np.array(array)[keep] if (
-            array is not None and not isinstance(array, (float, int, np.float32)))
-                                                          else array
-                                                          for array in arrays]
+    return [array[keep] for array in reference_arrays] + [
+        np.array(array)[keep]
+        if (array is not None and not isinstance(array, (float, int, np.float32)))
+        else array
+        for array in arrays
+    ]
 
 
 def aggregate_array(ts_values, agg_periods=7, agg_func=np.sum):
@@ -181,20 +195,29 @@ def aggregate_array(ts_values, agg_periods=7, agg_func=np.sum):
     ts_values = np.array(ts_values)
     n_periods = len(ts_values)
 
-    drop_first_periods = n_periods % agg_periods  # drop these periods from the front, to ensure all bins are full
+    drop_first_periods = (
+        n_periods % agg_periods
+    )  # drop these periods from the front, to ensure all bins are full
     if drop_first_periods == n_periods:
         drop_first_periods = 0
-        warnings.warn(f"Requested agg_periods={agg_periods}, but there are only {n_periods}. Using all for aggregation")
+        warnings.warn(
+            f"Requested agg_periods={agg_periods}, but there are only {n_periods}. Using all for aggregation"
+        )
     elif drop_first_periods > 0:
-        log_message(f"Requested agg_periods={agg_periods} for data of length {n_periods}. Dropping first"
-                    f" {drop_first_periods} records before aggregation", LoggingLevelEnum.INFO)
+        log_message(
+            f"Requested agg_periods={agg_periods} for data of length {n_periods}. Dropping first"
+            f" {drop_first_periods} records before aggregation",
+            LoggingLevelEnum.INFO,
+        )
 
     # creates dummy time index for aggregation
-    dates = pd.date_range("2018-01-01", periods=n_periods - drop_first_periods, freq="1D")
+    dates = pd.date_range(
+        "2018-01-01", periods=n_periods - drop_first_periods, freq="1D"
+    )
     ts = pd.Series(ts_values[drop_first_periods:], index=dates)
-    aggregated_array = ts.resample(f"{agg_periods}D", closed="left") \
-        .agg(lambda x: agg_func(x)) \
-        .values
+    aggregated_array = (
+        ts.resample(f"{agg_periods}D", closed="left").agg(lambda x: agg_func(x)).values
+    )
     return aggregated_array
 
 
@@ -234,7 +257,8 @@ def add_finite_filter_to_scorer(score_func):
             arrays=[y_pred],
             reference_array_names="y_true",
             drop_leading_only=False,
-            keep_inf=False)
+            keep_inf=False,
+        )
         # The Silverkite Multistage model has NANs at the beginning
         # when predicting on the training data.
         # We only drop the leading NANs/infs from ``y_pred``,
@@ -244,7 +268,8 @@ def add_finite_filter_to_scorer(score_func):
             arrays=[y_true],
             reference_array_names="y_pred",
             drop_leading_only=True,
-            keep_inf=True)
+            keep_inf=True,
+        )
         if len(y_true) == 0:  # returns None if there are no elements
             return None
         return score_func(y_true, y_pred, **kwargs)
@@ -253,11 +278,8 @@ def add_finite_filter_to_scorer(score_func):
 
 
 def r2_null_model_score(
-        y_true,
-        y_pred,
-        y_pred_null=None,
-        y_train=None,
-        loss_func=mean_squared_error):
+    y_true, y_pred, y_pred_null=None, y_train=None, loss_func=mean_squared_error
+):
     """Calculates improvement in the loss function compared
     to the predictions of a null model. Can be used to evaluate
     model quality with respect to a simple baseline model.
@@ -335,7 +357,8 @@ def r2_null_model_score(
         arrays=[y_pred, y_train, y_pred_null],
         reference_array_names="y_true",
         drop_leading_only=False,
-        keep_inf=False)
+        keep_inf=False,
+    )
     r2_null_model = None
 
     if len(y_true) > 0:
@@ -384,7 +407,8 @@ def calc_pred_err(y_true, y_pred):
         arrays=[y_pred],
         reference_array_names="y_true",
         drop_leading_only=False,
-        keep_inf=False)
+        keep_inf=False,
+    )
     # The Silverkite Multistage model has NANs at the beginning
     # when predicting on the training data.
     # We only drop the leading NANs/infs from ``y_pred``,
@@ -394,7 +418,8 @@ def calc_pred_err(y_true, y_pred):
         arrays=[y_true],
         reference_array_names="y_pred",
         drop_leading_only=True,
-        keep_inf=True)
+        keep_inf=True,
+    )
     error = {}
 
     if len(y_true) > 0:
@@ -418,7 +443,9 @@ def mean_absolute_percent_error(y_true, y_pred):
         warnings.warn("y_true contains 0. MAPE is undefined.")
         return None
     elif smallest_denominator < 1e-8:
-        warnings.warn("y_true contains very small values. MAPE is likely highly volatile.")
+        warnings.warn(
+            "y_true contains very small values. MAPE is likely highly volatile."
+        )
     return 100 * (np.abs(y_true - y_pred) / np.abs(y_true)).mean()
 
 
@@ -438,8 +465,24 @@ def median_absolute_percent_error(y_true, y_pred):
         num_small = len(y_true[y_true < 1e-8])
         if num_small > (len(y_true) - 1) // 2:
             # if too many very small values, median is affected
-            warnings.warn("y_true contains very small values. MedAPE is likely highly volatile.")
+            warnings.warn(
+                "y_true contains very small values. MedAPE is likely highly volatile."
+            )
     return 100 * np.median((np.abs(y_true - y_pred) / np.abs(y_true)))
+
+
+@add_finite_filter_to_scorer
+def weighted_mean_absolute_percentage_error(y_true, y_pred):
+    """Calculates weighted median absolute percentage error.
+
+    WMAPE := sum(abs(y_true - y_pred)) / max(sum(y_true), epsilon)
+
+    :param y_true: observed values given in a list (or numpy array)
+    :param y_pred: predicted values given in a list (or numpy array)
+    :return: weighted mean absolute percent error
+    """
+    epsilon = np.finfo(np.float64).eps
+    return np.sum(np.abs(y_pred - y_true)) / np.maximum(np.sum(y_true), epsilon)
 
 
 @add_finite_filter_to_scorer
@@ -456,7 +499,9 @@ def symmetric_mean_absolute_percent_error(y_true, y_pred):
         warnings.warn("denominator contains 0. sMAPE is undefined.")
         return None
     elif smallest_denominator < 1e-8:
-        warnings.warn("denominator contains very small values. sMAPE is likely highly volatile.")
+        warnings.warn(
+            "denominator contains very small values. sMAPE is likely highly volatile."
+        )
     return 100 * (np.abs(y_true - y_pred) / (np.abs(y_true) + np.abs(y_pred))).mean()
 
 
@@ -502,13 +547,17 @@ def quantile_loss(y_true, y_pred, q: float = 0.95):
     :return: quantile loss.
     :returns: float
     """
-    return np.where(y_true < y_pred, (1 - q) * (y_pred - y_true), q * (y_true - y_pred)).mean()
+    return np.where(
+        y_true < y_pred, (1 - q) * (y_pred - y_true), q * (y_true - y_pred)
+    ).mean()
 
 
 def quantile_loss_q(q):
     """Returns quantile loss function for the specified quantile"""
+
     def quantile_loss_wrapper(y_true, y_pred):
         return quantile_loss(y_true, y_pred, q=q)
+
     return quantile_loss_wrapper
 
 
@@ -525,17 +574,25 @@ def fraction_within_bands(observed, lower, upper):
         arrays=[lower, upper],
         reference_array_names="y_true",
         drop_leading_only=False,
-        keep_inf=False)
+        keep_inf=False,
+    )
     lower, upper, observed = valid_elements_for_evaluation(
         reference_arrays=[lower, upper],
         arrays=[observed],
         reference_array_names="lower/upper bound",
         drop_leading_only=True,
-        keep_inf=False)
+        keep_inf=False,
+    )
     num_reversed = np.count_nonzero(upper < lower)
     if num_reversed > 0:
-        warnings.warn(f"{num_reversed} of {len(observed)} upper bound values are smaller than the lower bound")
-    return np.count_nonzero((observed > lower) & (observed < upper)) / len(observed) if len(observed) > 0 else None
+        warnings.warn(
+            f"{num_reversed} of {len(observed)} upper bound values are smaller than the lower bound"
+        )
+    return (
+        np.count_nonzero((observed > lower) & (observed < upper)) / len(observed)
+        if len(observed) > 0
+        else None
+    )
 
 
 def fraction_outside_tolerance(y_true, y_pred, rtol=0.05):
@@ -564,13 +621,15 @@ def fraction_outside_tolerance(y_true, y_pred, rtol=0.05):
         arrays=[y_pred],
         reference_array_names="y_true",
         drop_leading_only=False,
-        keep_inf=False)
+        keep_inf=False,
+    )
     y_pred, y_true = valid_elements_for_evaluation(
         reference_arrays=[y_pred],
         arrays=[y_true],
         reference_array_names="y_pred",
         drop_leading_only=True,
-        keep_inf=True)  # Keeps inf from prediction.
+        keep_inf=True,
+    )  # Keeps inf from prediction.
     return np.mean(~np.isclose(y_pred, y_true, rtol=rtol, atol=0.0))
 
 
@@ -588,19 +647,27 @@ def prediction_band_width(observed, lower, upper):
         arrays=[lower, upper],
         reference_array_names="y_true",
         drop_leading_only=False,
-        keep_inf=False)
+        keep_inf=False,
+    )
     lower, upper, observed = valid_elements_for_evaluation(
         reference_arrays=[lower, upper],
         arrays=[observed],
         reference_array_names="lower/upper bound",
         drop_leading_only=True,
-        keep_inf=True)  # Keeps inf from prediction.
+        keep_inf=True,
+    )  # Keeps inf from prediction.
     observed = np.abs(observed)
     num_reversed = np.count_nonzero(upper < lower)
     if num_reversed > 0:
-        warnings.warn(f"{num_reversed} of {len(observed)} upper bound values are smaller than the lower bound")
+        warnings.warn(
+            f"{num_reversed} of {len(observed)} upper bound values are smaller than the lower bound"
+        )
     # if there are 0s in observed, relative size is undefined
-    return 100.0 * np.mean(np.abs(upper - lower) / observed) if len(observed) > 0 and observed.min() > 0 else None
+    return (
+        100.0 * np.mean(np.abs(upper - lower) / observed)
+        if len(observed) > 0 and observed.min() > 0
+        else None
+    )
 
 
 def mean_interval_score(observed, lower, upper, coverage):
@@ -633,16 +700,22 @@ def mean_interval_score(observed, lower, upper, coverage):
         arrays=[lower, upper],
         reference_array_names="y_true",
         drop_leading_only=False,
-        keep_inf=False)
+        keep_inf=False,
+    )
     lower, upper, observed = valid_elements_for_evaluation(
         reference_arrays=[lower, upper],
         arrays=[observed],
         reference_array_names="lower/upper bounds",
         drop_leading_only=False,
-        keep_inf=True)
+        keep_inf=True,
+    )
     interval_width = upper - lower
-    error_lower = np.where(observed < lower, 2.0 * (lower - observed) / (1.0 - coverage), 0.0)
-    error_upper = np.where(observed > upper, 2.0 * (observed - upper) / (1.0 - coverage), 0.0)
+    error_lower = np.where(
+        observed < lower, 2.0 * (lower - observed) / (1.0 - coverage), 0.0
+    )
+    error_upper = np.where(
+        observed > upper, 2.0 * (observed - upper) / (1.0 - coverage), 0.0
+    )
     interval_score = interval_width + error_lower + error_upper
     return np.mean(interval_score)
 
@@ -663,13 +736,15 @@ def calc_pred_coverage(observed, predicted, lower, upper, coverage):
         arrays=[predicted, lower, upper],
         reference_array_names="y_true",
         drop_leading_only=False,
-        keep_inf=False)
+        keep_inf=False,
+    )
     predicted, lower, upper, observed = valid_elements_for_evaluation(
         reference_arrays=[predicted, lower, upper],
         arrays=[observed],
         reference_array_names="y_pred and lower/upper bounds",
         drop_leading_only=True,
-        keep_inf=True)
+        keep_inf=True,
+    )
     metrics = {}
 
     if len(observed) > 0:
@@ -687,7 +762,9 @@ def calc_pred_coverage(observed, predicted, lower, upper, coverage):
         # Fraction of observations within the upper band.
         metrics.update({UPPER_BAND_COVERAGE: metric_func(observed, predicted, upper)})
         # Difference between actual and intended coverage.
-        metrics.update({COVERAGE_VS_INTENDED_DIFF: (metrics[PREDICTION_BAND_COVERAGE] - coverage)})
+        metrics.update(
+            {COVERAGE_VS_INTENDED_DIFF: (metrics[PREDICTION_BAND_COVERAGE] - coverage)}
+        )
 
         # Mean interval score.
         enum = ValidationMetricEnum.MEAN_INTERVAL_SCORE
@@ -770,7 +847,9 @@ def elementwise_absolute_percent_error(true_val, pred_val):
         warnings.warn("true_val is 0. Percent error is undefined.")
         return np.nan
     elif true_val < 1e-8:
-        warnings.warn("true_val is less than 1e-8. Percent error is very likely highly volatile.")
+        warnings.warn(
+            "true_val is less than 1e-8. Percent error is very likely highly volatile."
+        )
     return 100 * abs(true_val - pred_val) / abs(true_val)
 
 
@@ -850,7 +929,10 @@ class ElementwiseEvaluationMetricEnum(Enum):
     For example, AbsoluteError followed by mean aggregation gives MeanAbsoluteError.
     EvaluationMetricEnum is more efficient if it can be used directly.
     """
-    ElementwiseEvaluationMetric = namedtuple("ElementwiseEvaluationMetric", "func, name, args")
+
+    ElementwiseEvaluationMetric = namedtuple(
+        "ElementwiseEvaluationMetric", "func, name, args"
+    )
     """
     The elementwise evaluation function and associated metadata.
 
@@ -863,54 +945,58 @@ class ElementwiseEvaluationMetricEnum(Enum):
             e.g. [actual, predicted]
     """
     Residual = ElementwiseEvaluationMetric(
-        elementwise_residual,
-        "residual",
-        [ACTUAL_COL, PREDICTED_COL])
+        elementwise_residual, "residual", [ACTUAL_COL, PREDICTED_COL]
+    )
     """Residual, true-pred"""
     AbsoluteError = ElementwiseEvaluationMetric(
-        elementwise_absolute_error,
-        "absolute_error",
-        [ACTUAL_COL, PREDICTED_COL])
+        elementwise_absolute_error, "absolute_error", [ACTUAL_COL, PREDICTED_COL]
+    )
     """Absolute error, abs(true-pred)"""
     SquaredError = ElementwiseEvaluationMetric(
-        elementwise_squared_error,
-        "squared_error",
-        [ACTUAL_COL, PREDICTED_COL])
+        elementwise_squared_error, "squared_error", [ACTUAL_COL, PREDICTED_COL]
+    )
     """Squared error, (true-pred)^2"""
     AbsolutePercentError = ElementwiseEvaluationMetric(
         elementwise_absolute_percent_error,
         "absolute_percent_error",
-        [ACTUAL_COL, PREDICTED_COL])
+        [ACTUAL_COL, PREDICTED_COL],
+    )
     """Percent error, abs(true-pred)/abs(true)"""
     Quantile80 = ElementwiseEvaluationMetric(
         partial(elementwise_quantile, q=0.80),
         "quantile_loss_80",
-        [ACTUAL_COL, PREDICTED_COL])
+        [ACTUAL_COL, PREDICTED_COL],
+    )
     """Quantile loss with q=0.80"""
     Quantile90 = ElementwiseEvaluationMetric(
         partial(elementwise_quantile, q=0.90),
         "quantile_loss_90",
-        [ACTUAL_COL, PREDICTED_COL])
+        [ACTUAL_COL, PREDICTED_COL],
+    )
     """Quantile loss with q=0.90"""
     Quantile95 = ElementwiseEvaluationMetric(
         partial(elementwise_quantile, q=0.95),
         "quantile_loss_95",
-        [ACTUAL_COL, PREDICTED_COL])
+        [ACTUAL_COL, PREDICTED_COL],
+    )
     """Quantile loss with q=0.95"""
     Quantile99 = ElementwiseEvaluationMetric(
         partial(elementwise_quantile, q=0.99),
         "quantile_loss_99",
-        [ACTUAL_COL, PREDICTED_COL])
+        [ACTUAL_COL, PREDICTED_COL],
+    )
     """Quantile loss with q=0.99"""
     OutsideTolerance5 = ElementwiseEvaluationMetric(
         partial(elementwise_outside_tolerance, rtol=0.05),
         "outside_tolerance_5p",
-        [ACTUAL_COL, PREDICTED_COL])
+        [ACTUAL_COL, PREDICTED_COL],
+    )
     """Whether the predicted value deviates more than 5% from the true value"""
     Coverage = ElementwiseEvaluationMetric(
         elementwise_within_bands,
         "coverage",
-        [ACTUAL_COL, PREDICTED_LOWER_COL, PREDICTED_UPPER_COL])
+        [ACTUAL_COL, PREDICTED_LOWER_COL, PREDICTED_UPPER_COL],
+    )
     """Whether the actual value is within the prediction interval"""
 
     def get_metric_func(self):
@@ -934,6 +1020,7 @@ class EvaluationMetricEnum(Enum):
     ``sklearn.metrics`` (e.g. ``mean_squared_error``) to ensure that the metric gets calculated
     even when inputs have missing values.
     """
+
     Correlation = (correlation, True, "CORR")
     """Pearson correlation coefficient between forecast and actuals. Higher is better."""
     CoefficientOfDetermination = (add_finite_filter_to_scorer(r2_score), True, "R2")
@@ -946,7 +1033,11 @@ class EvaluationMetricEnum(Enum):
     MeanAbsoluteError = (add_finite_filter_to_scorer(mean_absolute_error), False, "MAE")
     """Mean absolute error, average of absolute differences,
     see `sklearn.metrics.mean_absolute_error`."""
-    MedianAbsoluteError = (add_finite_filter_to_scorer(median_absolute_error), False, "MedAE")
+    MedianAbsoluteError = (
+        add_finite_filter_to_scorer(median_absolute_error),
+        False,
+        "MedAE",
+    )
     """Median absolute error, median of absolute differences,
     see `sklearn.metrics.median_absolute_error`."""
     MeanAbsolutePercentError = (mean_absolute_percent_error, False, "MAPE")
@@ -955,7 +1046,18 @@ class EvaluationMetricEnum(Enum):
     MedianAbsolutePercentError = (median_absolute_percent_error, False, "MedAPE")
     """Median absolute percent error, median of error relative to actuals expressed as a %,
     a median version of the MeanAbsolutePercentError, less affected by extreme values."""
-    SymmetricMeanAbsolutePercentError = (symmetric_mean_absolute_percent_error, False, "sMAPE")
+    WeightedMeanAbsolutePercentError = (
+        weighted_mean_absolute_percentage_error,
+        False,
+        "WMAPE",
+    )
+    """Weighted mean absolute percent error.
+    See `wikipedia wMAPE <https://en.wikipedia.org/wiki/Demand_forecasting#Stage_5:_Checking_the_Accuracy_of_the_Model>`_."""
+    SymmetricMeanAbsolutePercentError = (
+        symmetric_mean_absolute_percent_error,
+        False,
+        "sMAPE",
+    )
     """Symmetric mean absolute percent error, error relative to (actuals+forecast) expressed as a %.
     Note that we do not include a factor of 2 in the denominator, so the range is 0% to 100%,
     see `wikipedia sMAPE <https://en.wikipedia.org/wiki/Symmetric_mean_absolute_percentage_error>`_."""
@@ -974,15 +1076,35 @@ class EvaluationMetricEnum(Enum):
 
         np.where(y_true < y_pred, (1 - q) * (y_pred - y_true), q * (y_true - y_pred)).mean()
     """
-    FractionOutsideTolerance1 = (partial(fraction_outside_tolerance, rtol=0.01), False, "OutsideTolerance1p")
+    FractionOutsideTolerance1 = (
+        partial(fraction_outside_tolerance, rtol=0.01),
+        False,
+        "OutsideTolerance1p",
+    )
     """Fraction of forecasted values that deviate more than 1% from the actual"""
-    FractionOutsideTolerance2 = (partial(fraction_outside_tolerance, rtol=0.02), False, "OutsideTolerance2p")
+    FractionOutsideTolerance2 = (
+        partial(fraction_outside_tolerance, rtol=0.02),
+        False,
+        "OutsideTolerance2p",
+    )
     """Fraction of forecasted values that deviate more than 2% from the actual"""
-    FractionOutsideTolerance3 = (partial(fraction_outside_tolerance, rtol=0.03), False, "OutsideTolerance3p")
+    FractionOutsideTolerance3 = (
+        partial(fraction_outside_tolerance, rtol=0.03),
+        False,
+        "OutsideTolerance3p",
+    )
     """Fraction of forecasted values that deviate more than 3% from the actual"""
-    FractionOutsideTolerance4 = (partial(fraction_outside_tolerance, rtol=0.04), False, "OutsideTolerance4p")
+    FractionOutsideTolerance4 = (
+        partial(fraction_outside_tolerance, rtol=0.04),
+        False,
+        "OutsideTolerance4p",
+    )
     """Fraction of forecasted values that deviate more than 4% from the actual"""
-    FractionOutsideTolerance5 = (partial(fraction_outside_tolerance, rtol=0.05), False, "OutsideTolerance5p")
+    FractionOutsideTolerance5 = (
+        partial(fraction_outside_tolerance, rtol=0.05),
+        False,
+        "OutsideTolerance5p",
+    )
     """Fraction of forecasted values that deviate more than 5% from the actual"""
 
     def get_metric_func(self):
@@ -1002,6 +1124,7 @@ class ValidationMetricEnum(Enum):
     """Valid diagnostic metrics.
     The values tuple is ``(score_func: callable, greater_is_better: boolean, short_name: str)``
     """
+
     BAND_WIDTH = (prediction_band_width, False, "band_width")
     BAND_COVERAGE = (fraction_within_bands, True, "band_coverage")
     MEAN_INTERVAL_SCORE = (mean_interval_score, False, "MIS")
