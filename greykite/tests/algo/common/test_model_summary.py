@@ -1,6 +1,7 @@
 import numpy as np
 import statsmodels.api as sm
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import ElasticNetCV
 from sklearn.linear_model import LarsCV
@@ -19,21 +20,25 @@ def test_model_summary():
     x = np.concatenate([np.ones([100, 1]), np.random.randn(100, 5)], axis=1)
     beta = np.array([1, 1, 1, 1, 0, 0])
     y = np.exp(np.matmul(x, beta))
-    pred_cols = ["Intercept",
-                 "ct1",
-                 "sin1_toy_yearly",
-                 "y_lag7",
-                 "ct1:sin1_toy_yearly",
-                 "C(Q('events_Chinese New Year'), levels=['', 'event'])[T.event]"]
+    pred_cols = [
+        "Intercept",
+        "ct1",
+        "sin1_toy_yearly",
+        "y_lag7",
+        "ct1:sin1_toy_yearly",
+        "C(Q('events_Chinese New Year'), levels=['', 'event'])[T.event]",
+    ]
     pred_category = {
         "intercept": ["Intercept"],
         "time_features": ["ct1", "ct1:sin1_toy_yearly"],
-        "event_features": ["C(Q('events_Chinese New Year'), levels=['', 'event'])[T.event]"],
+        "event_features": [
+            "C(Q('events_Chinese New Year'), levels=['', 'event'])[T.event]"
+        ],
         "trend_features": ["ct1", "ct1:sin1_toy_yearly"],
         "seasonality_features": ["sin1_toy_yearly", "ct1:sin1_toy_yearly"],
         "lag_features": ["y_lag7"],
         "regressor_features": [],
-        "interaction_features": ["ct1:sin1_toy_yearly"]
+        "interaction_features": ["ct1:sin1_toy_yearly"],
     }
     # fit algorithms
     fit_algorithm_dict = {
@@ -49,7 +54,9 @@ def test_model_summary():
         "lars": LarsCV,
         "lasso_lars": LassoLarsCV,
         "rf": RandomForestRegressor,
-        "gradient_boosting": GradientBoostingRegressor}
+        "gradient_boosting": GradientBoostingRegressor,
+        "hist_gradient_boosting": HistGradientBoostingRegressor,
+    }
     default_fit_algorithm_params = {
         "statsmodels_ols": dict(),
         "statsmodels_wls": dict(),
@@ -63,14 +70,13 @@ def test_model_summary():
         "lars": dict(cv=5),
         "lasso_lars": dict(cv=5),
         "rf": dict(n_estimators=100),
-        "gradient_boosting": dict()}
+        "gradient_boosting": dict(),
+        "hist_gradient_boosting": dict(),
+    }
     for fit_algorithm in fit_algorithm_dict:
         params = default_fit_algorithm_params.get(fit_algorithm, {})
         if "statsmodels" in fit_algorithm or fit_algorithm == "linear":
-            ml_model = fit_algorithm_dict[fit_algorithm](
-                endog=y,
-                exog=x,
-                **params)
+            ml_model = fit_algorithm_dict[fit_algorithm](endog=y, exog=x, **params)
             ml_model = ml_model.fit()
             ml_model.coef_ = ml_model.params
             ml_model.intercept_ = 0
@@ -83,7 +89,10 @@ def test_model_summary():
             pred_cols=pred_cols,
             pred_category=pred_category,
             fit_algorithm=fit_algorithm,
-            ml_model=ml_model)
+            ml_model=ml_model,
+        )
         summary.__str__()
         if fit_algorithm == "linear":
-            assert_equal(summary.info_dict["reg_df"], np.trace(x @ np.linalg.pinv(x.T @ x) @ x.T))
+            assert_equal(
+                summary.info_dict["reg_df"], np.trace(x @ np.linalg.pinv(x.T @ x) @ x.T)
+            )

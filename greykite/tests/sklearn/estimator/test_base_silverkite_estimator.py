@@ -27,8 +27,10 @@ def params():
         "lag_dict": {"orders": [7]},
         "agg_lag_dict": {
             "orders_list": [[7, 7 * 2, 7 * 3]],
-            "interval_list": [(7, 7 * 2)]},
-        "series_na_fill_func": lambda s: s.bfill().ffill()}
+            "interval_list": [(7, 7 * 2)],
+        },
+        "series_na_fill_func": lambda s: s.bfill().ffill(),
+    }
     uncertainty_dict = {
         "uncertainty_method": "simple_conditional_residuals",
         "params": {
@@ -37,9 +39,13 @@ def params():
             "quantile_estimation_method": "normal_fit",
             "sample_size_thresh": 5,
             "small_sample_size_method": "std_quantiles",
-            "small_sample_size_quantile": 0.98}}
+            "small_sample_size_quantile": 0.98,
+        },
+    }
     return {
-        "origin_for_time_vars": convert_date_to_continuous_time(datetime.datetime(2018, 1, 3)),
+        "origin_for_time_vars": convert_date_to_continuous_time(
+            datetime.datetime(2018, 1, 3)
+        ),
         "extra_pred_cols": ["ct1", "regressor1", "regressor2"],
         "train_test_thresh": None,
         "training_fraction": None,
@@ -47,15 +53,13 @@ def params():
         "fit_algorithm_params": {"alpha": 0.1},
         "daily_event_df_dict": None,
         "changepoints_dict": None,
-        "fs_components_df": pd.DataFrame({
-            "name": ["tow"],
-            "period": [7.0],
-            "order": [3],
-            "seas_names": [None]}),
+        "fs_components_df": pd.DataFrame(
+            {"name": ["tow"], "period": [7.0], "order": [3], "seas_names": [None]}
+        ),
         "autoreg_dict": autoreg_dict,
         "min_admissible_value": None,
         "max_admissible_value": None,
-        "uncertainty_dict": uncertainty_dict
+        "uncertainty_dict": uncertainty_dict,
     }
 
 
@@ -65,7 +69,8 @@ def daily_data():
         freq="D",
         periods=1000,
         train_start_date=datetime.datetime(2018, 1, 1),
-        conti_year_origin=2018)
+        conti_year_origin=2018,
+    )
 
 
 @pytest.fixture
@@ -76,10 +81,12 @@ def daily_data_with_reg():
 @pytest.fixture
 def X():
     periods = 11
-    return pd.DataFrame({
-        cst.TIME_COL: pd.date_range("2018-01-01", periods=periods, freq="D"),
-        cst.VALUE_COL: np.arange(1, periods + 1)
-    })
+    return pd.DataFrame(
+        {
+            cst.TIME_COL: pd.date_range("2018-01-01", periods=periods, freq="D"),
+            cst.VALUE_COL: np.arange(1, periods + 1),
+        }
+    )
 
 
 @pytest.fixture
@@ -103,48 +110,67 @@ def test_params():
     return dict(
         time_col=time_col,
         value_col=value_col,
-        df=pd.DataFrame({
-            time_col: [
-                datetime.datetime(2018, 1, 1),
-                datetime.datetime(2018, 1, 2),
-                datetime.datetime(2018, 1, 3),
-                datetime.datetime(2018, 1, 4),
-                datetime.datetime(2018, 1, 5)],
-            value_col: [10, 10, 10, 10, 10],
-            "dummy_col": [0, 0, 0, 0, 0],
-        }),
-        feature_df=pd.DataFrame({
-            # Trend columns: growth, changepoints and interactions (total 5 columns)
-            "ct1": np.array([1.0, 1.0, 1.0, 1.0, 1.0]),
-            "ct1:tod": np.array([1.0, 1.0, 1.0, 1.0, 1.0]),
-            "ct_sqrt": np.array([1.0, 1.0, 1.0, 1.0, 1.0]),
-            "changepoint0_2018_01_02_00": np.array([1.0, 1.0, 1.0, 1.0, 1.0]),
-            "changepoint1_2018_01_04_00": np.array([1.0, 1.0, 1.0, 1.0, 1.0]),
-            # Lag columns: autoregression, lagged regressor
-            f"{value_col}_lag1": np.array([4.0, 4.0, 4.0, 4.0, 4.0]),
-            f"{value_col}_avglag_3_5": np.array([4.0, 4.0, 4.0, 4.0, 4.0]),
-            "regressor1_lag1": np.array([4.0, 4.0, 4.0, 4.0, 4.0]),
-            "regressor_categ_avglag_4_6": np.array([4.0, 4.0, 4.0, 4.0, 4.0]),
-            # Daily seasonality with interaction (total 4 columns)
-            "sin1_tow_weekly": np.array([2.0, 2.0, 2.0, 2.0, 2.0]),
-            "cos1_tow_weekly": np.array([2.0, 2.0, 2.0, 2.0, 2.0]),
-            "is_weekend[T.True]:sin1_tow_weekly": np.array([2.0, 2.0, 2.0, 2.0, 2.0]),
-            "is_weekend[T.True]:cos1_tow_weekly": np.array([2.0, 2.0, 2.0, 2.0, 2.0]),
-            # Yearly seasonality (total 6 columns)
-            "sin1_ct1_yearly": np.array([3.0, 3.0, 3.0, 3.0, 3.0]),
-            "cos1_ct1_yearly": np.array([3.0, 3.0, 3.0, 3.0, 3.0]),
-            "sin2_ct1_yearly": np.array([3.0, 3.0, 3.0, 3.0, 3.0]),
-            "cos2_ct1_yearly": np.array([3.0, 3.0, 3.0, 3.0, 3.0]),
-            "sin3_ct1_yearly": np.array([3.0, 3.0, 3.0, 3.0, 3.0]),
-            "cos3_ct1_yearly": np.array([3.0, 3.0, 3.0, 3.0, 3.0]),
-            # Holiday with pre and post effect (1 at the where the date and event match)
-            # e.g. New Years Day is 1 at 1st January, 0 rest of the days
-            "Q('events_New Years Day')[T.event]": np.array([1.0, 0.0, 0.0, 0.0, 0.0]),
-            "Q('events_New Years Day_minus_1')[T.event]": np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
-            "Q('events_New Years Day_minus_2')[T.event]": np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
-            "Q('events_New Years Day_plus_1')[T.event]": np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
-            "Q('events_New Years Day_plus_2')[T.event]": np.array([0.0, 0.0, 1.0, 0.0, 0.0]),
-        })
+        df=pd.DataFrame(
+            {
+                time_col: [
+                    datetime.datetime(2018, 1, 1),
+                    datetime.datetime(2018, 1, 2),
+                    datetime.datetime(2018, 1, 3),
+                    datetime.datetime(2018, 1, 4),
+                    datetime.datetime(2018, 1, 5),
+                ],
+                value_col: [10, 10, 10, 10, 10],
+                "dummy_col": [0, 0, 0, 0, 0],
+            }
+        ),
+        feature_df=pd.DataFrame(
+            {
+                # Trend columns: growth, changepoints and interactions (total 5 columns)
+                "ct1": np.array([1.0, 1.0, 1.0, 1.0, 1.0]),
+                "ct1:tod": np.array([1.0, 1.0, 1.0, 1.0, 1.0]),
+                "ct_sqrt": np.array([1.0, 1.0, 1.0, 1.0, 1.0]),
+                "changepoint0_2018_01_02_00": np.array([1.0, 1.0, 1.0, 1.0, 1.0]),
+                "changepoint1_2018_01_04_00": np.array([1.0, 1.0, 1.0, 1.0, 1.0]),
+                # Lag columns: autoregression, lagged regressor
+                f"{value_col}_lag1": np.array([4.0, 4.0, 4.0, 4.0, 4.0]),
+                f"{value_col}_avglag_3_5": np.array([4.0, 4.0, 4.0, 4.0, 4.0]),
+                "regressor1_lag1": np.array([4.0, 4.0, 4.0, 4.0, 4.0]),
+                "regressor_categ_avglag_4_6": np.array([4.0, 4.0, 4.0, 4.0, 4.0]),
+                # Daily seasonality with interaction (total 4 columns)
+                "sin1_tow_weekly": np.array([2.0, 2.0, 2.0, 2.0, 2.0]),
+                "cos1_tow_weekly": np.array([2.0, 2.0, 2.0, 2.0, 2.0]),
+                "is_weekend[T.True]:sin1_tow_weekly": np.array(
+                    [2.0, 2.0, 2.0, 2.0, 2.0]
+                ),
+                "is_weekend[T.True]:cos1_tow_weekly": np.array(
+                    [2.0, 2.0, 2.0, 2.0, 2.0]
+                ),
+                # Yearly seasonality (total 6 columns)
+                "sin1_ct1_yearly": np.array([3.0, 3.0, 3.0, 3.0, 3.0]),
+                "cos1_ct1_yearly": np.array([3.0, 3.0, 3.0, 3.0, 3.0]),
+                "sin2_ct1_yearly": np.array([3.0, 3.0, 3.0, 3.0, 3.0]),
+                "cos2_ct1_yearly": np.array([3.0, 3.0, 3.0, 3.0, 3.0]),
+                "sin3_ct1_yearly": np.array([3.0, 3.0, 3.0, 3.0, 3.0]),
+                "cos3_ct1_yearly": np.array([3.0, 3.0, 3.0, 3.0, 3.0]),
+                # Holiday with pre and post effect (1 at the where the date and event match)
+                # e.g. New Years Day is 1 at 1st January, 0 rest of the days
+                "Q('events_New Years Day')[T.event]": np.array(
+                    [1.0, 0.0, 0.0, 0.0, 0.0]
+                ),
+                "Q('events_New Years Day_minus_1')[T.event]": np.array(
+                    [0.0, 0.0, 0.0, 0.0, 0.0]
+                ),
+                "Q('events_New Years Day_minus_2')[T.event]": np.array(
+                    [0.0, 0.0, 0.0, 0.0, 0.0]
+                ),
+                "Q('events_New Years Day_plus_1')[T.event]": np.array(
+                    [0.0, 1.0, 0.0, 0.0, 0.0]
+                ),
+                "Q('events_New Years Day_plus_2')[T.event]": np.array(
+                    [0.0, 0.0, 1.0, 0.0, 0.0]
+                ),
+            }
+        ),
     )
 
 
@@ -159,12 +185,15 @@ def test_init(params):
             "quantile_estimation_method": "normal_fit",
             "sample_size_thresh": 5,
             "small_sample_size_method": "std_quantiles",
-            "small_sample_size_quantile": 0.98}}
+            "small_sample_size_quantile": 0.98,
+        },
+    }
     model = BaseSilverkiteEstimator(
         score_func=mean_squared_error,
         coverage=coverage,
         null_model_params=None,
-        uncertainty_dict=uncertainty_dict)
+        uncertainty_dict=uncertainty_dict,
+    )
 
     assert model.score_func == mean_squared_error
     assert model.coverage == coverage
@@ -180,10 +209,9 @@ def test_init(params):
 
 def test_null_model(X):
     """Checks null model"""
-    model = BaseSilverkiteEstimator(null_model_params={
-        "strategy": "quantile",
-        "constant": None,
-        "quantile": 0.8})
+    model = BaseSilverkiteEstimator(
+        null_model_params={"strategy": "quantile", "constant": None, "quantile": 0.8}
+    )
 
     model.fit(X)
     y = np.repeat(2.0, X.shape[0])
@@ -193,9 +221,8 @@ def test_null_model(X):
     # tests if different score function gets propagated to null model
     model = BaseSilverkiteEstimator(
         score_func=mean_absolute_error,
-        null_model_params={"strategy": "quantile",
-                           "constant": None,
-                           "quantile": 0.8})
+        null_model_params={"strategy": "quantile", "constant": None, "quantile": 0.8},
+    )
     model.fit(X)
     y = np.repeat(2.0, X.shape[0])
     null_score = model.null_model.score(X, y=y)
@@ -212,23 +239,20 @@ def test_fit_predict(daily_data):
     assert model.last_predicted_X_ is None
     assert model.cached_predictions_ is None
 
-    with pytest.raises(
-            NotFittedError,
-            match="Call `fit` before calling `predict`."):
+    with pytest.raises(NotFittedError, match="Call `fit` before calling `predict`."):
         model.predict(train_df)
 
     # Every subclass `fit` follows these steps
-    model.fit(
-        train_df,
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL)
+    model.fit(train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL)
     # Checks that `df` is set, but other variables aren't
     assert_equal(model.df, train_df)
     assert model.pred_cols is None
     assert model.feature_cols is None
     assert model.coef_ is None
 
-    with pytest.raises(ValueError, match="Must set `self.model_dict` before calling this function."):
+    with pytest.raises(
+        ValueError, match="Must set `self.model_dict` before calling this function."
+    ):
         model.finish_fit()
 
     silverkite = SilverkiteForecast()
@@ -244,20 +268,23 @@ def test_fit_predict(daily_data):
         fit_algorithm_params=None,
         daily_event_df_dict=None,
         changepoints_dict=None,
-        fs_components_df=pd.DataFrame({
-            "name": ["tod", "tow", "conti_year"],
-            "period": [24.0, 7.0, 1.0],
-            "order": [3, 3, 5],
-            "seas_names": ["daily", "weekly", "yearly"]}),
+        fs_components_df=pd.DataFrame(
+            {
+                "name": ["tod", "tow", "conti_year"],
+                "period": [24.0, 7.0, 1.0],
+                "order": [3, 3, 5],
+                "seas_names": ["daily", "weekly", "yearly"],
+            }
+        ),
         autoreg_dict=None,
         min_admissible_value=None,
         max_admissible_value=None,
-        uncertainty_dict=None
+        uncertainty_dict=None,
     )
 
     with pytest.raises(
-            NotFittedError,
-            match="Subclass must call `finish_fit` inside the `fit` method."):
+        NotFittedError, match="Subclass must call `finish_fit` inside the `fit` method."
+    ):
         model.predict(train_df)
     assert model.last_predicted_X_ is not None  # attempted prediction
     assert model.cached_predictions_ is None
@@ -266,9 +293,10 @@ def test_fit_predict(daily_data):
     # Checks that other variables are set
     assert_equal(model.pred_cols, model.model_dict["pred_cols"])
     assert_equal(model.feature_cols, model.model_dict["x_mat"].columns)
-    assert_equal(model.coef_, pd.DataFrame(
-        model.model_dict["ml_model"].coef_,
-        index=model.feature_cols))
+    assert_equal(
+        model.coef_,
+        pd.DataFrame(model.model_dict["ml_model"].coef_, index=model.feature_cols),
+    )
 
     # Predicts on a new dataset
     with LogCapture(cst.LOGGER_NAME) as log_capture:
@@ -278,18 +306,18 @@ def test_fit_predict(daily_data):
         # The following message is from `SilverkiteForecast.predict` function,
         # which means the `predict` method is called and cached prediction is not used.
         log_capture.check(
-            (cst.LOGGER_NAME,
-             "DEBUG",
-             "``past_df`` not provided during prediction, use the ``train_df`` from "
-             "training results.")
+            (
+                cst.LOGGER_NAME,
+                "DEBUG",
+                "``past_df`` not provided during prediction, use the ``train_df`` from "
+                "training results.",
+            )
         )
 
     # Uses cached predictions
     with LogCapture(cst.LOGGER_NAME) as log_capture:
         assert_equal(model.predict(test_df), predicted)
-        log_capture.check(
-            (cst.LOGGER_NAME, "DEBUG", "Returning cached predictions.")
-        )
+        log_capture.check((cst.LOGGER_NAME, "DEBUG", "Returning cached predictions."))
 
     # Predicts on a different dataset
     with LogCapture(cst.LOGGER_NAME) as log_capture:
@@ -299,10 +327,12 @@ def test_fit_predict(daily_data):
         # The following message is from `SilverkiteForecast.predict` function,
         # which means the `predict` method is called and cached prediction is not used.
         log_capture.check(
-            (cst.LOGGER_NAME,
-             "DEBUG",
-             "``past_df`` not provided during prediction, use the ``train_df`` from "
-             "training results.")
+            (
+                cst.LOGGER_NAME,
+                "DEBUG",
+                "``past_df`` not provided during prediction, use the ``train_df`` from "
+                "training results.",
+            )
         )
 
     # .fit() clears the cached result
@@ -318,10 +348,7 @@ def test_score_function(daily_data_with_reg):
     test_df = daily_data_with_reg["test_df"]
 
     # every subclass `fit` follows these steps
-    model.fit(
-        X=train_df,
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL)
+    model.fit(X=train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL)
     silverkite = SilverkiteForecast()
     model.model_dict = silverkite.forecast(
         df=train_df,
@@ -335,24 +362,27 @@ def test_score_function(daily_data_with_reg):
         fit_algorithm_params=None,
         daily_event_df_dict=None,
         changepoints_dict=None,
-        fs_components_df=pd.DataFrame({
-            "name": ["tod", "tow", "conti_year"],
-            "period": [24.0, 7.0, 1.0],
-            "order": [3, 3, 5],
-            "seas_names": ["daily", "weekly", "yearly"]}),
+        fs_components_df=pd.DataFrame(
+            {
+                "name": ["tod", "tow", "conti_year"],
+                "period": [24.0, 7.0, 1.0],
+                "order": [3, 3, 5],
+                "seas_names": ["daily", "weekly", "yearly"],
+            }
+        ),
         autoreg_dict=None,
         min_admissible_value=None,
         max_admissible_value=None,
-        uncertainty_dict=None
+        uncertainty_dict=None,
     )
     model.finish_fit()
 
     score = model.score(test_df, test_df[cst.VALUE_COL])
     pred_df = model.predict(test_df)
     assert list(pred_df.columns) == [cst.TIME_COL, cst.PREDICTED_COL]
-    assert score == pytest.approx(mean_squared_error(
-        pred_df[cst.PREDICTED_COL],
-        test_df[cst.VALUE_COL]))
+    assert score == pytest.approx(
+        mean_squared_error(pred_df[cst.PREDICTED_COL], test_df[cst.VALUE_COL])
+    )
     assert score == pytest.approx(4.6, rel=1e-1)
 
 
@@ -370,10 +400,12 @@ def test_set_uncertainty_dict(daily_data):
             "quantile_estimation_method": "normal_fit",
             "sample_size_thresh": 20,
             "small_sample_size_method": "std_quantiles",
-            "small_sample_size_quantile": 0.98}}
+            "small_sample_size_quantile": 0.98,
+        },
+    }
     model = BaseSilverkiteEstimator(
-        coverage=coverage,
-        uncertainty_dict=uncertainty_dict)
+        coverage=coverage, uncertainty_dict=uncertainty_dict
+    )
     model.fit(train_df)
     expected_dict = uncertainty_dict
     assert_equal(model.uncertainty_dict, expected_dict)
@@ -383,8 +415,8 @@ def test_set_uncertainty_dict(daily_data):
     coverage = 0.90
     uncertainty_dict = None
     model = BaseSilverkiteEstimator(
-        coverage=coverage,
-        uncertainty_dict=uncertainty_dict)
+        coverage=coverage, uncertainty_dict=uncertainty_dict
+    )
     model.fit(train_df)
     expected_dict = {
         "uncertainty_method": "simple_conditional_residuals",
@@ -394,7 +426,9 @@ def test_set_uncertainty_dict(daily_data):
             "quantile_estimation_method": "normal_fit",
             "sample_size_thresh": 5,
             "small_sample_size_method": "std_quantiles",
-            "small_sample_size_quantile": 0.98}}
+            "small_sample_size_quantile": 0.98,
+        },
+    }
     assert_equal(model.uncertainty_dict, expected_dict)
     assert_equal(model.coverage, coverage)
 
@@ -402,8 +436,8 @@ def test_set_uncertainty_dict(daily_data):
     coverage = None
     uncertainty_dict = None
     model = BaseSilverkiteEstimator(
-        coverage=coverage,
-        uncertainty_dict=uncertainty_dict)
+        coverage=coverage, uncertainty_dict=uncertainty_dict
+    )
     model.fit(train_df)
     expected_dict = None
     assert_equal(model.uncertainty_dict, expected_dict)
@@ -419,10 +453,12 @@ def test_set_uncertainty_dict(daily_data):
             "quantile_estimation_method": "normal_fit",
             "sample_size_thresh": 5,
             "small_sample_size_method": "std_quantiles",
-            "small_sample_size_quantile": 0.98}}
+            "small_sample_size_quantile": 0.98,
+        },
+    }
     model = BaseSilverkiteEstimator(
-        coverage=coverage,
-        uncertainty_dict=uncertainty_dict)
+        coverage=coverage, uncertainty_dict=uncertainty_dict
+    )
     model.fit(train_df)
     expected_dict = uncertainty_dict
     assert_equal(model.uncertainty_dict, expected_dict)
@@ -435,10 +471,7 @@ def test_summary(daily_data):
     train_df = daily_data["train_df"]
     model.summary()
 
-    model.fit(
-        train_df,
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL)
+    model.fit(train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL)
     model.summary()
 
 
@@ -448,7 +481,8 @@ def test_silverkite_with_components_daily_data(expected_component_names):
         freq="D",
         periods=35,
         train_start_date=datetime.datetime(2018, 1, 1),
-        conti_year_origin=2018)
+        conti_year_origin=2018,
+    )
     train_df = daily_data["train_df"].copy()
     train_df.loc[[2, 4, 7], cst.VALUE_COL] = np.nan  # creates missing values
 
@@ -456,34 +490,32 @@ def test_silverkite_with_components_daily_data(expected_component_names):
     # converts into parameters for `forecast_silverkite`
     coverage = params_daily.pop("coverage")
     # removes daily seasonality terms
-    params_daily["fs_components_df"] = pd.DataFrame({
-        "name": ["tow", "ct1"],
-        "period": [7.0, 1.0],
-        "order": [4, 5],
-        "seas_names": ["weekly", "yearly"]})
+    params_daily["fs_components_df"] = pd.DataFrame(
+        {
+            "name": ["tow", "ct1"],
+            "period": [7.0, 1.0],
+            "order": [4, 5],
+            "seas_names": ["weekly", "yearly"],
+        }
+    )
 
     model = BaseSilverkiteEstimator(
-        coverage=coverage,
-        uncertainty_dict=params_daily["uncertainty_dict"])
+        coverage=coverage, uncertainty_dict=params_daily["uncertainty_dict"]
+    )
 
     with pytest.raises(
-            NotFittedError,
-            match="Call `fit` before calling `plot_components`."):
+        NotFittedError, match="Call `fit` before calling `plot_components`."
+    ):
         model.plot_components()
 
     with pytest.warns(Warning):
         # suppress warnings from conf_interval.py and sklearn
         # a subclass's `fit()` method will have these steps
-        model.fit(
-            X=train_df,
-            time_col=cst.TIME_COL,
-            value_col=cst.VALUE_COL)
+        model.fit(X=train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL)
         silverkite = SilverkiteForecast()
         model.model_dict = silverkite.forecast(
-            df=train_df,
-            time_col=cst.TIME_COL,
-            value_col=cst.VALUE_COL,
-            **params_daily)
+            df=train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL, **params_daily
+        )
         model.finish_fit()
 
     # Tests `plot_components`
@@ -491,79 +523,71 @@ def test_silverkite_with_components_daily_data(expected_component_names):
     fig = model.plot_components(title=title)
     expected_rows = 10
     assert len(fig.data) == expected_rows  # includes changepoints
-    assert all([fig.data[i].name in expected_component_names for i in range(expected_rows)])
+    assert all(
+        [fig.data[i].name in expected_component_names for i in range(expected_rows)]
+    )
     assert fig.layout.xaxis.title["text"] == "Date"
     assert fig.layout.title["text"] == title
     assert fig.layout.title["x"] == 0.5
 
-    with pytest.raises(
-            ValueError,
-            match="Call the predict"):
+    with pytest.raises(ValueError, match="Call the predict"):
         model.plot_components(predict_phase=True)
 
     # Tests `plot_components(predict_phase=True)`
-    _ = model.predict(X=daily_data['test_df'])
+    _ = model.predict(X=daily_data["test_df"])
     fig = model.plot_components(predict_phase=True)
     expected_rows = 6
     assert len(fig.data) == expected_rows  # includes changepoints
-    assert all([fig.data[i].name in expected_component_names for i in range(expected_rows)])
+    assert all(
+        [fig.data[i].name in expected_component_names for i in range(expected_rows)]
+    )
     assert fig.layout.xaxis.title["text"] == "Date"
     assert fig.layout.title["text"] == "Component Plot - Predicted"
     assert fig.layout.title["x"] == 0.5
 
     # Tests `plot_components(predict_phase=True)` with gap
-    _ = model.predict(X=daily_data['test_df'].iloc[4:, :])
+    _ = model.predict(X=daily_data["test_df"].iloc[4:, :])
     fig = model.plot_components(predict_phase=True)
     expected_rows = 6
     assert len(fig.data) == expected_rows  # includes changepoints
-    assert all([fig.data[i].name in expected_component_names for i in range(expected_rows)])
+    assert all(
+        [fig.data[i].name in expected_component_names for i in range(expected_rows)]
+    )
     assert fig.layout.xaxis.title["text"] == "Date"
     assert fig.layout.title["text"] == "Component Plot - Predicted"
     assert fig.layout.title["x"] == 0.5
 
     # Tests inputs to `plot_components`
-    with pytest.raises(
-            TypeError,
-            match="center_components must be bool: True/False"):
+    with pytest.raises(TypeError, match="center_components must be bool: True/False"):
         model.plot_components(center_components="Yes please")
 
-    with pytest.raises(
-            ValueError,
-            match="Choose denominator from"):
+    with pytest.raises(ValueError, match="Choose denominator from"):
         model.plot_components(denominator="Abs_Y")
 
-    with pytest.raises(
-            TypeError,
-            match="grouping_regex_patterns_dict must be"):
+    with pytest.raises(TypeError, match="grouping_regex_patterns_dict must be"):
         model.plot_components(grouping_regex_patterns_dict=[])
 
-    with pytest.raises(
-            ValueError,
-            match="grouping_regex_patterns_dict must be"):
+    with pytest.raises(ValueError, match="grouping_regex_patterns_dict must be"):
         model.plot_components(grouping_regex_patterns_dict={})
 
     # Component plot error if `fit_algorithm` is "rf" or "gradient_boosting"
     params_daily["fit_algorithm"] = "rf"
     model = BaseSilverkiteEstimator(
-        coverage=coverage,
-        uncertainty_dict=params_daily["uncertainty_dict"])
+        coverage=coverage, uncertainty_dict=params_daily["uncertainty_dict"]
+    )
     with pytest.warns(Warning):
         # suppress warnings from conf_interval.py and sklearn
         # a subclass's `fit()` method will have these steps
-        model.fit(
-            X=train_df,
-            time_col=cst.TIME_COL,
-            value_col=cst.VALUE_COL)
+        model.fit(X=train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL)
         model.model_dict = silverkite.forecast(
-            df=train_df,
-            time_col=cst.TIME_COL,
-            value_col=cst.VALUE_COL,
-            **params_daily)
+            df=train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL, **params_daily
+        )
         model.finish_fit()
     assert model.coef_ is None
     with pytest.raises(
-            NotImplementedError,
-            match="Component plot has only been implemented for additive linear models."):
+        NotImplementedError,
+        match="Component plot has only been implemented for additive linear models.",
+    ):
         model.plot_components()
 
 
@@ -573,28 +597,24 @@ def test_silverkite_with_components_hourly_data(expected_component_names):
         freq="H",
         periods=24 * 3,
         train_start_date=datetime.datetime(2018, 1, 1),
-        conti_year_origin=2018)
+        conti_year_origin=2018,
+    )
     train_df = hourly_data.get("train_df").copy()
     params_hourly = params_components()
     # Removes predictor column for dow by hour interaction
     # "dow_hr" is unique in forecast period otherwise and causes an error
-    params_hourly["extra_pred_cols"].remove('dow_hr')
+    params_hourly["extra_pred_cols"].remove("dow_hr")
 
     # converts into parameters for `forecast_silverkite`
     coverage = params_hourly.pop("coverage")
     model = BaseSilverkiteEstimator(
-        coverage=coverage,
-        uncertainty_dict=params_hourly["uncertainty_dict"])
-    model.fit(
-        X=train_df,
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL)
+        coverage=coverage, uncertainty_dict=params_hourly["uncertainty_dict"]
+    )
+    model.fit(X=train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL)
     silverkite = SilverkiteForecast()
     model.model_dict = silverkite.forecast(
-        df=train_df,
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL,
-        **params_hourly)
+        df=train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL, **params_hourly
+    )
     model.finish_fit()
 
     # Tests `plot_components`
@@ -602,27 +622,33 @@ def test_silverkite_with_components_hourly_data(expected_component_names):
     fig = model.plot_components(title=title)
     expected_rows = 10
     assert len(fig.data) == expected_rows  # includes changepoints
-    assert all([fig.data[i].name in expected_component_names for i in range(expected_rows)])
+    assert all(
+        [fig.data[i].name in expected_component_names for i in range(expected_rows)]
+    )
     assert fig.layout.xaxis.title["text"] == "Date"
     assert fig.layout.title["text"] == title
     assert fig.layout.title["x"] == 0.5
 
     # Tests `plot_components(predict_phase=True)`
-    _ = model.predict(X=hourly_data['test_df'])
+    _ = model.predict(X=hourly_data["test_df"])
     fig = model.plot_components(predict_phase=True)
     expected_rows = 6
     assert len(fig.data) == expected_rows  # includes changepoints
-    assert all([fig.data[i].name in expected_component_names for i in range(expected_rows)])
+    assert all(
+        [fig.data[i].name in expected_component_names for i in range(expected_rows)]
+    )
     assert fig.layout.xaxis.title["text"] == "Date"
     assert fig.layout.title["text"] == "Component Plot - Predicted"
     assert fig.layout.title["x"] == 0.5
 
     # Tests `plot_components(predict_phase=True)` with gap
-    _ = model.predict(X=hourly_data['test_df'].iloc[5:, :])
+    _ = model.predict(X=hourly_data["test_df"].iloc[5:, :])
     fig = model.plot_components(predict_phase=True)
     expected_rows = 6
     assert len(fig.data) == expected_rows  # includes changepoints
-    assert all([fig.data[i].name in expected_component_names for i in range(expected_rows)])
+    assert all(
+        [fig.data[i].name in expected_component_names for i in range(expected_rows)]
+    )
     assert fig.layout.xaxis.title["text"] == "Date"
     assert fig.layout.title["text"] == "Component Plot - Predicted"
     assert fig.layout.title["x"] == 0.5
@@ -630,28 +656,23 @@ def test_silverkite_with_components_hourly_data(expected_component_names):
 
 def test_plot_trend_changepoint_detection(df_pt):
     model = BaseSilverkiteEstimator()
-    model.fit(
-        X=df_pt,
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL)
-    params = {
-        "changepoints_dict": {"method": "auto"}}
+    model.fit(X=df_pt, time_col=cst.TIME_COL, value_col=cst.VALUE_COL)
+    params = {"changepoints_dict": {"method": "auto"}}
     silverkite = SilverkiteForecast()
     model.model_dict = silverkite.forecast(
-        df=df_pt,
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL,
-        **params)
+        df=df_pt, time_col=cst.TIME_COL, value_col=cst.VALUE_COL, **params
+    )
     model.finish_fit()
     fig = model.plot_trend_changepoint_detection()
     assert fig is not None
-    assert fig.layout.title["text"] == "Timeseries Plot with detected trend change points"
+    assert (
+        fig.layout.title["text"] == "Timeseries Plot with detected trend change points"
+    )
     assert fig.layout.title["x"] == 0.5
     assert fig.layout.yaxis.title["text"] == cst.VALUE_COL
     assert fig.layout.xaxis.title["text"] == "Dates"
     # tests given parameters
-    fig = model.plot_trend_changepoint_detection(
-        dict(trend_change=False))
+    fig = model.plot_trend_changepoint_detection(dict(trend_change=False))
     assert fig is not None
     assert fig.layout.title["text"] == "Timeseries Plot"
     assert fig.layout.title["x"] == 0.5
@@ -662,18 +683,13 @@ def test_plot_trend_changepoint_detection(df_pt):
 def test_model_summary(df_pt):
     model = BaseSilverkiteEstimator()
     model.fit(
-        X=df_pt.iloc[:100],  # speeds up
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL)
-    params = {
-        "fit_algorithm": "linear",
-        "training_fraction": 0.8}
+        X=df_pt.iloc[:100], time_col=cst.TIME_COL, value_col=cst.VALUE_COL  # speeds up
+    )
+    params = {"fit_algorithm": "linear", "training_fraction": 0.8}
     silverkite = SilverkiteForecast()
     model.model_dict = silverkite.forecast(
-        df=df_pt.iloc[:100],
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL,
-        **params)
+        df=df_pt.iloc[:100], time_col=cst.TIME_COL, value_col=cst.VALUE_COL, **params
+    )
     model.finish_fit()
     summary = model.summary()
     summary.__str__()
@@ -685,24 +701,22 @@ def test_pred_category(df_pt):
     model = BaseSilverkiteEstimator()
     # property is not available without fitting.
     with pytest.raises(
-            NotFittedError,
-            match="Must fit before getting predictor category."):
+        NotFittedError, match="Must fit before getting predictor category."
+    ):
         print(model.pred_category)
     model.fit(
-        X=df_pt.iloc[:100],  # speeds up
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL)
+        X=df_pt.iloc[:100], time_col=cst.TIME_COL, value_col=cst.VALUE_COL  # speeds up
+    )
     params = {
         "fit_algorithm": "linear",
         "training_fraction": 0.8,
-        "extra_pred_cols": ["ct1", "x", "x:ct1"]}
+        "extra_pred_cols": ["ct1", "x", "x:ct1"],
+    }
     df_pt["x"] = np.random.randn(df_pt.shape[0])
     silverkite = SilverkiteForecast()
     model.model_dict = silverkite.forecast(
-        df=df_pt.iloc[:100],
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL,
-        **params)
+        df=df_pt.iloc[:100], time_col=cst.TIME_COL, value_col=cst.VALUE_COL, **params
+    )
     model.extra_pred_cols = ["ct1", "x", "x:ct1"]  # set in subclass initialization
     # _pred_category is None before trying to access pred_category
     assert model._pred_category is None
@@ -714,28 +728,30 @@ def test_pred_category(df_pt):
     assert pred_category["time_features"] == ["ct1", "x:ct1"]
     assert pred_category["event_features"] == []
     assert pred_category["trend_features"] == ["ct1", "x:ct1"]
-    assert pred_category["seasonality_features"] == ["sin1_tod_daily",
-                                                     "cos1_tod_daily",
-                                                     "sin2_tod_daily",
-                                                     "cos2_tod_daily",
-                                                     "sin3_tod_daily",
-                                                     "cos3_tod_daily",
-                                                     "sin1_tow_weekly",
-                                                     "cos1_tow_weekly",
-                                                     "sin2_tow_weekly",
-                                                     "cos2_tow_weekly",
-                                                     "sin3_tow_weekly",
-                                                     "cos3_tow_weekly",
-                                                     "sin1_toy_yearly",
-                                                     "cos1_toy_yearly",
-                                                     "sin2_toy_yearly",
-                                                     "cos2_toy_yearly",
-                                                     "sin3_toy_yearly",
-                                                     "cos3_toy_yearly",
-                                                     "sin4_toy_yearly",
-                                                     "cos4_toy_yearly",
-                                                     "sin5_toy_yearly",
-                                                     "cos5_toy_yearly"]
+    assert pred_category["seasonality_features"] == [
+        "sin1_tod_daily",
+        "cos1_tod_daily",
+        "sin2_tod_daily",
+        "cos2_tod_daily",
+        "sin3_tod_daily",
+        "cos3_tod_daily",
+        "sin1_tow_weekly",
+        "cos1_tow_weekly",
+        "sin2_tow_weekly",
+        "cos2_tow_weekly",
+        "sin3_tow_weekly",
+        "cos3_tow_weekly",
+        "sin1_toy_yearly",
+        "cos1_toy_yearly",
+        "sin2_toy_yearly",
+        "cos2_toy_yearly",
+        "sin3_toy_yearly",
+        "cos3_toy_yearly",
+        "sin4_toy_yearly",
+        "cos4_toy_yearly",
+        "sin5_toy_yearly",
+        "cos5_toy_yearly",
+    ]
     assert pred_category["lag_features"] == []
     assert pred_category["regressor_features"] == ["x", "x:ct1"]
     assert pred_category["interaction_features"] == ["x:ct1"]
@@ -748,43 +764,50 @@ def test_pred_category_regressor(df_pt):
     model = BaseSilverkiteEstimator()
     df_pt = df_pt.copy()
     model.fit(
-        X=df_pt.iloc[:100],  # speeds up
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL)
+        X=df_pt.iloc[:100], time_col=cst.TIME_COL, value_col=cst.VALUE_COL  # speeds up
+    )
     params = {
         "fit_algorithm": "linear",
         "training_fraction": 0.8,
-        "extra_pred_cols": ["ct1", "x", "x:ct1",
-                            "weather_wghtd_avg_cld_cvr_tot_pct_max_mid"],
+        "extra_pred_cols": [
+            "ct1",
+            "x",
+            "x:ct1",
+            "weather_wghtd_avg_cld_cvr_tot_pct_max_mid",
+        ],
         "lagged_regressor_dict": {
             "media_total_spend_lag4": {
                 "lag_dict": {"orders": [5]},
                 "agg_lag_dict": {
                     "orders_list": [[7, 7 * 2, 7 * 3]],
-                    "interval_list": [(8, 7 * 2)]},
-                "series_na_fill_func": lambda s: s.bfill().ffill()
+                    "interval_list": [(8, 7 * 2)],
+                },
+                "series_na_fill_func": lambda s: s.bfill().ffill(),
             }
-        }
+        },
     }
     df_pt["x"] = np.random.randn(df_pt.shape[0])
     df_pt["weather_wghtd_avg_cld_cvr_tot_pct_max_mid"] = np.random.randn(df_pt.shape[0])
     df_pt["media_total_spend_lag4"] = np.random.randn(df_pt.shape[0])
     silverkite = SilverkiteForecast()
     model.model_dict = silverkite.forecast(
-        df=df_pt.iloc[:100],
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL,
-        **params)
-    model.extra_pred_cols = ["ct1", "x", "x:ct1",
-                             "weather_wghtd_avg_cld_cvr_tot_pct_max_mid",
-                             "media_total_spend_lag4"]  # set in subclass initialization
+        df=df_pt.iloc[:100], time_col=cst.TIME_COL, value_col=cst.VALUE_COL, **params
+    )
+    model.extra_pred_cols = [
+        "ct1",
+        "x",
+        "x:ct1",
+        "weather_wghtd_avg_cld_cvr_tot_pct_max_mid",
+        "media_total_spend_lag4",
+    ]  # set in subclass initialization
     model.lagged_regressor_dict = {
         "media_total_spend_lag4": {
             "lag_dict": {"orders": [5]},
             "agg_lag_dict": {
                 "orders_list": [[7, 7 * 2, 7 * 3]],
-                "interval_list": [(8, 7 * 2)]},
-            "series_na_fill_func": lambda s: s.bfill().ffill()
+                "interval_list": [(8, 7 * 2)],
+            },
+            "series_na_fill_func": lambda s: s.bfill().ffill(),
         }
     }  # set in subclass initialization
 
@@ -795,35 +818,40 @@ def test_pred_category_regressor(df_pt):
     assert pred_category["time_features"] == ["ct1", "x:ct1"]
     assert pred_category["event_features"] == []
     assert pred_category["trend_features"] == ["ct1", "x:ct1"]
-    assert pred_category["seasonality_features"] == ["sin1_tod_daily",
-                                                     "cos1_tod_daily",
-                                                     "sin2_tod_daily",
-                                                     "cos2_tod_daily",
-                                                     "sin3_tod_daily",
-                                                     "cos3_tod_daily",
-                                                     "sin1_tow_weekly",
-                                                     "cos1_tow_weekly",
-                                                     "sin2_tow_weekly",
-                                                     "cos2_tow_weekly",
-                                                     "sin3_tow_weekly",
-                                                     "cos3_tow_weekly",
-                                                     "sin1_toy_yearly",
-                                                     "cos1_toy_yearly",
-                                                     "sin2_toy_yearly",
-                                                     "cos2_toy_yearly",
-                                                     "sin3_toy_yearly",
-                                                     "cos3_toy_yearly",
-                                                     "sin4_toy_yearly",
-                                                     "cos4_toy_yearly",
-                                                     "sin5_toy_yearly",
-                                                     "cos5_toy_yearly"]
+    assert pred_category["seasonality_features"] == [
+        "sin1_tod_daily",
+        "cos1_tod_daily",
+        "sin2_tod_daily",
+        "cos2_tod_daily",
+        "sin3_tod_daily",
+        "cos3_tod_daily",
+        "sin1_tow_weekly",
+        "cos1_tow_weekly",
+        "sin2_tow_weekly",
+        "cos2_tow_weekly",
+        "sin3_tow_weekly",
+        "cos3_tow_weekly",
+        "sin1_toy_yearly",
+        "cos1_toy_yearly",
+        "sin2_toy_yearly",
+        "cos2_toy_yearly",
+        "sin3_toy_yearly",
+        "cos3_toy_yearly",
+        "sin4_toy_yearly",
+        "cos4_toy_yearly",
+        "sin5_toy_yearly",
+        "cos5_toy_yearly",
+    ]
     assert pred_category["lag_features"] == [
         "media_total_spend_lag4_lag5",
         "media_total_spend_lag4_avglag_7_14_21",
-        "media_total_spend_lag4_avglag_8_to_14"
+        "media_total_spend_lag4_avglag_8_to_14",
     ]
-    assert pred_category["regressor_features"] == ["x", "x:ct1",
-                                                   "weather_wghtd_avg_cld_cvr_tot_pct_max_mid"]
+    assert pred_category["regressor_features"] == [
+        "x",
+        "x:ct1",
+        "weather_wghtd_avg_cld_cvr_tot_pct_max_mid",
+    ]
     assert pred_category["interaction_features"] == ["x:ct1"]
 
 
@@ -835,12 +863,7 @@ def test_get_max_ar_order():
     assert model.get_max_ar_order() == 21
 
     model.autoreg_dict = dict(
-        lag_dict=dict(
-            orders=[3, 5]
-        ),
-        agg_lag_dict=dict(
-            interval_list=[(7, 15)]
-        )
+        lag_dict=dict(orders=[3, 5]), agg_lag_dict=dict(interval_list=[(7, 15)])
     )
     assert model.get_max_ar_order() == 15
 
@@ -852,10 +875,7 @@ def test_past_df_in_predict(daily_data):
     past_df = train_df.iloc[:200]
     train_df = train_df.iloc[200:].reset_index(drop=True)
 
-    model.fit(
-        X=train_df,
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL)
+    model.fit(X=train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL)
 
     silverkite = SilverkiteForecast()
     model.model_dict = silverkite.forecast(
@@ -871,14 +891,10 @@ def test_past_df_in_predict(daily_data):
         daily_event_df_dict=None,
         changepoints_dict=None,
         fs_components_df=None,
-        autoreg_dict=dict(
-            lag_dict=dict(
-                orders=[1]
-            )
-        ),
+        autoreg_dict=dict(lag_dict=dict(orders=[1])),
         min_admissible_value=None,
         max_admissible_value=None,
-        uncertainty_dict=None
+        uncertainty_dict=None,
     )
     model.finish_fit()
     coef = model.model_dict["ml_model"].coef_
@@ -893,10 +909,11 @@ def test_past_df_in_predict(daily_data):
     # However, if we pass ``past_df``, the values in ``past_df``
     # will be used.
     model.past_df = past_df.iloc[[-2]]
-    pred = model.predict(
-        X=past_df.iloc[[-1]]
+    pred = model.predict(X=past_df.iloc[[-1]])
+    assert (
+        pred[cst.PREDICTED_COL].iloc[0]
+        == coef[0] + coef[1] * past_df[cst.VALUE_COL].iloc[-2]
     )
-    assert pred[cst.PREDICTED_COL].iloc[0] == coef[0] + coef[1] * past_df[cst.VALUE_COL].iloc[-2]
 
 
 def test_x_mat_in_predict(daily_data):
@@ -913,12 +930,11 @@ def test_x_mat_in_predict(daily_data):
             "quantile_estimation_method": "normal_fit",
             "sample_size_thresh": 20,
             "small_sample_size_method": "std_quantiles",
-            "small_sample_size_quantile": 0.98}}
+            "small_sample_size_quantile": 0.98,
+        },
+    }
 
-    model.fit(
-        X=train_df,
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL)
+    model.fit(X=train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL)
 
     silverkite = SilverkiteForecast()
     model.model_dict = silverkite.forecast(
@@ -937,21 +953,25 @@ def test_x_mat_in_predict(daily_data):
         autoreg_dict=None,
         min_admissible_value=None,
         max_admissible_value=None,
-        uncertainty_dict=uncertainty_dict
+        uncertainty_dict=uncertainty_dict,
     )
     model.finish_fit()
     coef = model.model_dict["ml_model"].coef_
     assert len(coef) == 3
 
     pred_df = model.predict(test_df)
-    cols = [cst.TIME_COL, cst.QUANTILE_SUMMARY_COL, cst.ERR_STD_COL,
-            cst.PREDICTED_LOWER_COL, cst.PREDICTED_UPPER_COL]
+    cols = [
+        cst.TIME_COL,
+        cst.QUANTILE_SUMMARY_COL,
+        cst.ERR_STD_COL,
+        cst.PREDICTED_LOWER_COL,
+        cst.PREDICTED_UPPER_COL,
+    ]
     assert_equal(model.forecast[cols], pred_df[cols])
     assert (model.forecast["y"].values == pred_df["forecast"].values).all()
 
     forecast_x_mat = model.forecast_x_mat
-    assert list(forecast_x_mat.columns) == [
-        "Intercept", "C(dow == 1)[T.True]", "ct1"]
+    assert list(forecast_x_mat.columns) == ["Intercept", "C(dow == 1)[T.True]", "ct1"]
     assert len(forecast_x_mat) == len(pred_df)
 
 
@@ -969,12 +989,11 @@ def test_forecast_breakdown(daily_data):
             "quantile_estimation_method": "normal_fit",
             "sample_size_thresh": 20,
             "small_sample_size_method": "std_quantiles",
-            "small_sample_size_quantile": 0.98}}
+            "small_sample_size_quantile": 0.98,
+        },
+    }
 
-    model.fit(
-        X=train_df,
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL)
+    model.fit(X=train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL)
 
     silverkite = SilverkiteForecast()
     model.model_dict = silverkite.forecast(
@@ -993,30 +1012,33 @@ def test_forecast_breakdown(daily_data):
         autoreg_dict=None,
         min_admissible_value=None,
         max_admissible_value=None,
-        uncertainty_dict=uncertainty_dict
+        uncertainty_dict=uncertainty_dict,
     )
     model.finish_fit()
     coef = model.model_dict["ml_model"].coef_
     assert len(coef) == 5
 
     pred_df = model.predict(test_df)
-    cols = [cst.TIME_COL, cst.QUANTILE_SUMMARY_COL, cst.ERR_STD_COL,
-            cst.PREDICTED_LOWER_COL, cst.PREDICTED_UPPER_COL]
+    cols = [
+        cst.TIME_COL,
+        cst.QUANTILE_SUMMARY_COL,
+        cst.ERR_STD_COL,
+        cst.PREDICTED_LOWER_COL,
+        cst.PREDICTED_UPPER_COL,
+    ]
     assert_equal(model.forecast[cols], pred_df[cols])
     assert (model.forecast["y"].values == pred_df["forecast"].values).all()
 
     forecast_x_mat = model.forecast_x_mat
-    assert list(forecast_x_mat.columns) == [
-        "Intercept", "ct1", "ct2", "month", "dow"]
+    assert list(forecast_x_mat.columns) == ["Intercept", "ct1", "ct2", "month", "dow"]
     assert len(forecast_x_mat) == len(pred_df)
 
-    grouping_regex_patterns_dict = {
-        "seasonality": ".*month.*|dow",
-        "growth": "ct1|ct2"}
+    grouping_regex_patterns_dict = {"seasonality": ".*month.*|dow", "growth": "ct1|ct2"}
 
     # applies to estimator with original forecasts
     breakdown_result = model.forecast_breakdown(
-        grouping_regex_patterns_dict=grouping_regex_patterns_dict)
+        grouping_regex_patterns_dict=grouping_regex_patterns_dict
+    )
 
     column_grouping_result = breakdown_result["column_grouping_result"]
     breakdown_df = breakdown_result["breakdown_df"]
@@ -1027,14 +1049,16 @@ def test_forecast_breakdown(daily_data):
     assert list(breakdown_df.columns) == ["Intercept", "seasonality", "growth"]
     assert column_grouping_result == {
         "str_groups": [["month", "dow"], ["ct1", "ct2"]],
-        "remainder": []}
+        "remainder": [],
+    }
 
     # Applies to estimator with passed ``forecast_x_mat``
     # In this case, we do not pass the time values
     # Therefore a generic index (0 to n) will be used in creating the figure
     breakdown_result = model.forecast_breakdown(
         grouping_regex_patterns_dict=grouping_regex_patterns_dict,
-        forecast_x_mat=forecast_x_mat.head(10))
+        forecast_x_mat=forecast_x_mat.head(10),
+    )
 
     breakdown_df = breakdown_result["breakdown_df"]
     column_grouping_result = breakdown_result["column_grouping_result"]
@@ -1046,7 +1070,8 @@ def test_forecast_breakdown(daily_data):
     assert list(breakdown_df.columns) == ["Intercept", "seasonality", "growth"]
     assert column_grouping_result == {
         "str_groups": [["month", "dow"], ["ct1", "ct2"]],
-        "remainder": []}
+        "remainder": [],
+    }
 
     # Makes sure ``forecast_x_mat`` is not over-written
     # as a result of applying ``forecast_breakdown``
@@ -1058,7 +1083,8 @@ def test_forecast_breakdown(daily_data):
     breakdown_result = model.forecast_breakdown(
         grouping_regex_patterns_dict=grouping_regex_patterns_dict,
         forecast_x_mat=forecast_x_mat.head(10),
-        time_values=pred_df.head(10)[cst.TIME_COL])
+        time_values=pred_df.head(10)[cst.TIME_COL],
+    )
 
     breakdown_df = breakdown_result["breakdown_df"]
     column_grouping_result = breakdown_result["column_grouping_result"]
@@ -1070,7 +1096,8 @@ def test_forecast_breakdown(daily_data):
     assert list(breakdown_df.columns) == ["Intercept", "seasonality", "growth"]
     assert column_grouping_result == {
         "str_groups": [["month", "dow"], ["ct1", "ct2"]],
-        "remainder": []}
+        "remainder": [],
+    }
 
 
 def test_forecast_breakdown_center_components(daily_data):
@@ -1087,12 +1114,11 @@ def test_forecast_breakdown_center_components(daily_data):
             "quantile_estimation_method": "normal_fit",
             "sample_size_thresh": 20,
             "small_sample_size_method": "std_quantiles",
-            "small_sample_size_quantile": 0.98}}
+            "small_sample_size_quantile": 0.98,
+        },
+    }
 
-    model.fit(
-        X=train_df,
-        time_col=cst.TIME_COL,
-        value_col=cst.VALUE_COL)
+    model.fit(X=train_df, time_col=cst.TIME_COL, value_col=cst.VALUE_COL)
 
     silverkite = SilverkiteForecast()
     model.model_dict = silverkite.forecast(
@@ -1111,31 +1137,34 @@ def test_forecast_breakdown_center_components(daily_data):
         autoreg_dict=None,
         min_admissible_value=None,
         max_admissible_value=None,
-        uncertainty_dict=uncertainty_dict
+        uncertainty_dict=uncertainty_dict,
     )
     model.finish_fit()
     coef = model.model_dict["ml_model"].coef_
     assert len(coef) == 5
 
     pred_df = model.predict(test_df)
-    cols = [cst.TIME_COL, cst.QUANTILE_SUMMARY_COL, cst.ERR_STD_COL,
-            cst.PREDICTED_LOWER_COL, cst.PREDICTED_UPPER_COL]
+    cols = [
+        cst.TIME_COL,
+        cst.QUANTILE_SUMMARY_COL,
+        cst.ERR_STD_COL,
+        cst.PREDICTED_LOWER_COL,
+        cst.PREDICTED_UPPER_COL,
+    ]
     assert_equal(model.forecast[cols], pred_df[cols])
     assert (model.forecast["y"].values == pred_df["forecast"].values).all()
 
     forecast_x_mat = model.forecast_x_mat
-    assert list(forecast_x_mat.columns) == [
-        "Intercept", "ct1", "ct2", "month", "dow"]
+    assert list(forecast_x_mat.columns) == ["Intercept", "ct1", "ct2", "month", "dow"]
     assert len(forecast_x_mat) == len(pred_df)
 
-    grouping_regex_patterns_dict = {
-        "seasonality": ".*month.*|dow",
-        "growth": "ct1|ct2"}
+    grouping_regex_patterns_dict = {"seasonality": ".*month.*|dow", "growth": "ct1|ct2"}
 
     # ``center_components=False``
     breakdown_result = model.forecast_breakdown(
         grouping_regex_patterns_dict=grouping_regex_patterns_dict,
-        center_components=False)
+        center_components=False,
+    )
 
     column_grouping_result = breakdown_result["column_grouping_result"]
     breakdown_df = breakdown_result["breakdown_df"]
@@ -1146,7 +1175,8 @@ def test_forecast_breakdown_center_components(daily_data):
     assert list(breakdown_df.columns) == ["Intercept", "seasonality", "growth"]
     assert column_grouping_result == {
         "str_groups": [["month", "dow"], ["ct1", "ct2"]],
-        "remainder": []}
+        "remainder": [],
+    }
 
     # commented out plot for testing purposes only
     # import plotly
@@ -1156,7 +1186,8 @@ def test_forecast_breakdown_center_components(daily_data):
     # ``center_components=True``
     breakdown_result = model.forecast_breakdown(
         grouping_regex_patterns_dict=grouping_regex_patterns_dict,
-        center_components=True)
+        center_components=True,
+    )
 
     column_grouping_result = breakdown_result["column_grouping_result"]
     breakdown_df = breakdown_result["breakdown_df"]
@@ -1167,7 +1198,8 @@ def test_forecast_breakdown_center_components(daily_data):
     assert list(breakdown_df.columns) == ["Intercept", "seasonality", "growth"]
     assert column_grouping_result == {
         "str_groups": [["month", "dow"], ["ct1", "ct2"]],
-        "remainder": []}
+        "remainder": [],
+    }
 
     # commented out plot for testing purposes only
     # import plotly
