@@ -79,18 +79,22 @@ def process_intercept(x, beta, intercept, pred_cols):
     elif x.shape[1] == beta.shape[0] + 1:
         beta = np.concatenate([[intercept], beta])
     else:
-        raise ValueError("The shape of x and beta do not match. "
-                         f"x has shape ({x.shape[0]}, {x.shape[1]}) with the intercept column, "
-                         f"but beta has length {len(beta)}.")
+        raise ValueError(
+            "The shape of x and beta do not match. "
+            f"x has shape ({x.shape[0]}, {x.shape[1]}) with the intercept column, "
+            f"but beta has length {len(beta)}."
+        )
     # Processes pred_cols
     if len(pred_cols) == x.shape[1] - 1:
         pred_cols = [INTERCEPT] + pred_cols
     elif len(pred_cols) == x.shape[1] and "Intercept" in pred_cols[0]:
         pass
     else:
-        raise ValueError("The length of pred_cols does not match the shape of x. "
-                         f"x has shape ({x.shape[0]}, {x.shape[1]}) with the intercept column, "
-                         f"but pred_cols has length {len(pred_cols)}.")
+        raise ValueError(
+            "The length of pred_cols does not match the shape of x. "
+            f"x has shape ({x.shape[0]}, {x.shape[1]}) with the intercept column, "
+            f"but pred_cols has length {len(pred_cols)}."
+        )
     return x, beta, pred_cols
 
 
@@ -122,9 +126,11 @@ def round_numbers(numbers, sig_digits=4):
         else:
             num_digit = -int(np.floor(np.log10(abs(number)))) + sig_digits - 1
             new_num = np.round(number, num_digit)
-            new_num = ("{:.3e}".format(new_num)
-                       if abs(new_num) > 10 ** sig_digits or abs(new_num) < 10 ** (-sig_digits)
-                       else str(new_num))
+            new_num = (
+                "{:.3e}".format(new_num)
+                if abs(new_num) > 10 ** sig_digits or abs(new_num) < 10 ** (-sig_digits)
+                else str(new_num)
+            )
         return new_num
 
     return np.vectorize(round_number)(numbers)
@@ -218,7 +224,9 @@ def create_info_dict_lm(x, y, beta, ml_model, fit_algorithm, pred_cols):
     info_dict["y_pred"] = x @ beta
     info_dict["y_mean"] = np.mean(y)
     info_dict["residual"] = info_dict["y"] - info_dict["y_pred"]
-    info_dict["residual_summary"] = np.percentile(info_dict["residual"], [0, 25, 50, 75, 100])
+    info_dict["residual_summary"] = np.percentile(
+        info_dict["residual"], [0, 25, 50, 75, 100]
+    )
     return info_dict
 
 
@@ -266,8 +274,19 @@ def add_model_params_lm(info_dict):
     ml_model = info_dict["ml_model"]
     n_sample = info_dict["n_sample"]
     # Dictionary for model parameters
-    valid_linear_fit_algorithms = ["linear", "statsmodels_ols", "statsmodels_wls", "statsmodels_gls", "statsmodels_glm",
-                                   "ridge", "lasso", "lars", "lasso_lars", "sgd", "elastic_net"]
+    valid_linear_fit_algorithms = [
+        "linear",
+        "statsmodels_ols",
+        "statsmodels_wls",
+        "statsmodels_gls",
+        "statsmodels_glm",
+        "ridge",
+        "lasso",
+        "lars",
+        "lasso_lars",
+        "sgd",
+        "elastic_net",
+    ]
     if fit_algorithm in valid_linear_fit_algorithms:
         # Adds special parameters
         if fit_algorithm in ["linear", "statsmodels_ols"]:
@@ -291,7 +310,9 @@ def add_model_params_lm(info_dict):
             info_dict["l1_ratio"] = ml_model.l1_ratio_
         elif fit_algorithm == "sgd":
             info_dict["model"] = "Elastic Net regression via SGD"
-            info_dict["alpha"] = ml_model.alpha  # does not have underscore, because this is not cv
+            info_dict[
+                "alpha"
+            ] = ml_model.alpha  # does not have underscore, because this is not cv
             if info_dict["ml_model"].penalty == "l1":
                 info_dict["l1_ratio"] = 1.0
             elif info_dict["ml_model"].penalty == "l2":
@@ -307,18 +328,25 @@ def add_model_params_lm(info_dict):
                 weights = np.array(info_dict["weights"])
                 if weights.shape == ():  # checks if weights is a scalar
                     weights = np.diag(np.repeat(weights, n_sample))
-                elif weights.shape == (n_sample,) or weights.shape == (n_sample, 1):  # checks if weights is a vector
+                elif weights.shape == (n_sample,) or weights.shape == (
+                    n_sample,
+                    1,
+                ):  # checks if weights is a vector
                     weights = np.diag(weights.ravel())
                 elif weights.shape == (n_sample, n_sample):
                     weights = weights
                 else:
-                    raise ValueError("The shape of weights does not match the design matrix. "
-                                     f"The design matrix has length {n_sample}. "
-                                     f"The weights has shape {weights.shape}.")
+                    raise ValueError(
+                        "The shape of weights does not match the design matrix. "
+                        f"The design matrix has length {n_sample}. "
+                        f"The weights has shape {weights.shape}."
+                    )
             info_dict["weights"] = weights
     else:
-        raise ValueError(f"{fit_algorithm} is not a valid algorithm, it must be in "
-                         f"{valid_linear_fit_algorithms}.")
+        raise ValueError(
+            f"{fit_algorithm} is not a valid algorithm, it must be in "
+            f"{valid_linear_fit_algorithms}."
+        )
     return info_dict
 
 
@@ -381,7 +409,9 @@ def add_model_df_lm(info_dict):
     # alpha * l1_ratio * ||beta||_1 + alpha * (1 - l1_ratio) * ||beta||_2^2.
     # For ridge regression, we have l1_ratio = 0, so the l2_norm regularization parameter is alpha.
     # For lasso regression, we have l1_ratio = 1, so the l2_norm regularization parameter is zero.
-    alpha = alpha * (1 - l1_ratio)  # if model has l1_ratio, the l2 norm regularization parameter is alpha * (1 - l1_ratio)
+    alpha = alpha * (
+        1 - l1_ratio
+    )  # if model has l1_ratio, the l2 norm regularization parameter is alpha * (1 - l1_ratio)
     if info_dict["fit_algorithm"] in ["lasso", "lars", "lasso_lars"]:
         alpha = 0  # alpha is specifically for l2 norm regularization in calculating df
     nonzero_idx = info_dict["nonzero_index"]
@@ -503,19 +533,30 @@ def add_beta_var_lm(info_dict):
                 its diagonal elements are standard errors of the estimated coefficients.
                 Set as ``None`` for sparse solutions.
     """
-    if (info_dict["fit_algorithm"] in ["statsmodels_ols", "statsmodels_wls", "statsmodels_gls", "linear", "ridge"]
-            or info_dict["fit_algorithm"] in ["sgd", "elastic_net"] and info_dict["l1_ratio"] == 0):
+    if (
+        info_dict["fit_algorithm"]
+        in ["statsmodels_ols", "statsmodels_wls", "statsmodels_gls", "linear", "ridge"]
+        or info_dict["fit_algorithm"] in ["sgd", "elastic_net"]
+        and info_dict["l1_ratio"] == 0
+    ):
         xtwx_alphai_inv = info_dict["xtwx_alphai_inv"]
         mse = info_dict["mse"]
         # Variance of estimated coefficients mse * (X'WX+aI)^-1X'X(X'WX+aI)^-1
         x_nz = info_dict["x_nz"]
-        info_dict["beta_var_cov"] = xtwx_alphai_inv @ x_nz.T @ x_nz @ xtwx_alphai_inv * mse
+        info_dict["beta_var_cov"] = (
+            xtwx_alphai_inv @ x_nz.T @ x_nz @ xtwx_alphai_inv * mse
+        )
     elif info_dict["fit_algorithm"] in ["statsmodels_glm"]:
         # Variance of mle is approximately I(beta_hat)^-1/n, where I is Fisher's information matrix.
-        assert isinstance(info_dict["ml_model"], statsmodels.genmod.generalized_linear_model.GLMResultsWrapper)
+        assert isinstance(
+            info_dict["ml_model"],
+            statsmodels.genmod.generalized_linear_model.GLMResultsWrapper,
+        )
         info_dict["beta_var_cov"] = info_dict["ml_model"].cov_params()
     else:
-        info_dict["beta_var_cov"] = None  # The covariance matrix for beta is not support with sparse solution
+        info_dict[
+            "beta_var_cov"
+        ] = None  # The covariance matrix for beta is not support with sparse solution
     return info_dict
 
 
@@ -553,27 +594,38 @@ def get_ls_coef_df(info_dict):
 
     # Gets p-values and significance codes
     p_values = 2 * t.cdf(-np.abs(t_values), info_dict["df_sse"]).ravel()
-    sig_codes = ["***" if p < 0.001 else
-                 "**" if p < 0.01 else
-                 "*" if p < 0.05 else
-                 "." if p < 0.1 else
-                 " " for p in p_values]
+    sig_codes = [
+        "***"
+        if p < 0.001
+        else "**"
+        if p < 0.01
+        else "*"
+        if p < 0.05
+        else "."
+        if p < 0.1
+        else " "
+        for p in p_values
+    ]
     # Gets 95% confidence intervals
     t_975 = t.ppf(0.975, info_dict["df_sse"])
     ci_lb = beta - t_975 * std_err
     ci_ub = beta + t_975 * std_err
     ci = list(zip(ci_lb, ci_ub))
     # Makes full df
-    info_dict["coef_summary_df"] = pd.DataFrame({
-        "Pred_col": info_dict["pred_cols"],
-        "Estimate": beta,
-        "Std. Err": std_err,
-        "t value": t_values,
-        "Pr(>|t|)": p_values,
-        "sig. code": sig_codes,
-        "95%CI": ci
-    })
-    info_dict["significance_code_legend"] = "0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1"
+    info_dict["coef_summary_df"] = pd.DataFrame(
+        {
+            "Pred_col": info_dict["pred_cols"],
+            "Estimate": beta,
+            "Std. Err": std_err,
+            "t value": t_values,
+            "Pr(>|t|)": p_values,
+            "sig. code": sig_codes,
+            "95%CI": ci,
+        }
+    )
+    info_dict[
+        "significance_code_legend"
+    ] = "0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1"
     return info_dict
 
 
@@ -606,27 +658,38 @@ def get_glm_coef_df(info_dict):
     z_values = beta / std_err
     # Gets p-values and significance codes
     p_values = 2 * norm.cdf(-np.abs(z_values)).ravel()
-    sig_codes = ["***" if p < 0.001 else
-                 "**" if p < 0.01 else
-                 "*" if p < 0.05 else
-                 "." if p < 0.1 else
-                 " " for p in p_values]
+    sig_codes = [
+        "***"
+        if p < 0.001
+        else "**"
+        if p < 0.01
+        else "*"
+        if p < 0.05
+        else "."
+        if p < 0.1
+        else " "
+        for p in p_values
+    ]
     # Gets 95% confidence intervals
     z_975 = norm.ppf(0.975)
     ci_lb = beta - z_975 * std_err
     ci_ub = beta + z_975 * std_err
     ci = list(zip(ci_lb, ci_ub))
     # Makes full df
-    info_dict["coef_summary_df"] = pd.DataFrame({
-        "Pred_col": info_dict["pred_cols"],
-        "Estimate": beta,
-        "Std. Err": std_err,
-        "z value": z_values,
-        "Pr(>|Z|)": p_values,
-        "sig. code": sig_codes,
-        "95%CI": ci
-    })
-    info_dict["significance_code_legend"] = "0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1"
+    info_dict["coef_summary_df"] = pd.DataFrame(
+        {
+            "Pred_col": info_dict["pred_cols"],
+            "Estimate": beta,
+            "Std. Err": std_err,
+            "z value": z_values,
+            "Pr(>|Z|)": p_values,
+            "sig. code": sig_codes,
+            "95%CI": ci,
+        }
+    )
+    info_dict[
+        "significance_code_legend"
+    ] = "0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1"
     return info_dict
 
 
@@ -663,9 +726,8 @@ class Bootstrapper(object):
     def next(self):
         if self.sample_num < self.num_bootstrap:
             sample_index = np.random.choice(
-                a=self.sample_size,
-                size=self.bootstrap_size,
-                replace=True)
+                a=self.sample_size, size=self.bootstrap_size, replace=True
+            )
             self.sample_num += 1
             return sample_index
         else:
@@ -699,22 +761,27 @@ def get_ridge_summary_df_by_bootstrap(x, y, beta, alpha, pred_cols):
     """
     num_bootstrap = 500
     bootstrap_idx = Bootstrapper(
-        sample_size=x.shape[0],
-        bootstrap_size=x.shape[0],
-        num_bootstrap=num_bootstrap)
+        sample_size=x.shape[0], bootstrap_size=x.shape[0], num_bootstrap=num_bootstrap
+    )
     beta_estimates = None
     intercepts = []
     for idx in bootstrap_idx:
         x_b = x[idx, :]
         y_b = y[idx]
-        model = Ridge(alpha=alpha, fit_intercept=True).fit(x_b, y_b)  # Fits intercept separately, does not penalize intercept
+        model = Ridge(alpha=alpha, fit_intercept=True).fit(
+            x_b, y_b
+        )  # Fits intercept separately, does not penalize intercept
         intercepts.append(model.intercept_)
         # ``beta_estimates`` stores the bootstrapped beta: col = bootstrap indices; rows=betas
         if beta_estimates is None:
             beta_estimates = model.coef_.reshape(-1, 1)
         else:
-            beta_estimates = np.concatenate([beta_estimates, model.coef_.reshape(-1, 1)], axis=1)
-    beta_estimates[0] += np.array(intercepts).reshape(beta_estimates[0].shape)  # adds intercepts
+            beta_estimates = np.concatenate(
+                [beta_estimates, model.coef_.reshape(-1, 1)], axis=1
+            )
+    beta_estimates[0] += np.array(intercepts).reshape(
+        beta_estimates[0].shape
+    )  # adds intercepts
     # Gets coefficient standard errors
     std_err = beta_estimates.std(axis=1)
 
@@ -723,15 +790,28 @@ def get_ridge_summary_df_by_bootstrap(x, y, beta, alpha, pred_cols):
     # Gets p-values and significance codes
     # For an estimated coefficient, its p-value is the proportion of bootstrap estimates whose distances
     # to the bootstrap distribution mean are at least the absolute value of the estimated coefficient.
-    p_values = np.apply_along_axis(
-        func1d=lambda row: len(row[:-1][abs(row[:-1] - row[:-1].mean()) >= abs(row[-1])]),
-        axis=1,
-        arr=np.concatenate([beta_estimates, beta.reshape(-1, 1)], axis=1)) / num_bootstrap
-    sig_codes = ["***" if p < 0.001 else
-                 "**" if p < 0.01 else
-                 "*" if p < 0.05 else
-                 "." if p < 0.1 else
-                 " " for p in p_values]
+    p_values = (
+        np.apply_along_axis(
+            func1d=lambda row: len(
+                row[:-1][abs(row[:-1] - row[:-1].mean()) >= abs(row[-1])]
+            ),
+            axis=1,
+            arr=np.concatenate([beta_estimates, beta.reshape(-1, 1)], axis=1),
+        )
+        / num_bootstrap
+    )
+    sig_codes = [
+        "***"
+        if p < 0.001
+        else "**"
+        if p < 0.01
+        else "*"
+        if p < 0.05
+        else "."
+        if p < 0.1
+        else " "
+        for p in p_values
+    ]
 
     # Gets 95% confidence intervals
     ci_lb = np.percentile(beta_estimates, 2.5, axis=1)
@@ -739,14 +819,16 @@ def get_ridge_summary_df_by_bootstrap(x, y, beta, alpha, pred_cols):
     ci = [[lb, ub] for lb, ub in zip(ci_lb, ci_ub)]
 
     # Makes full df
-    coef_summary_df = pd.DataFrame({
-        "Pred_col": pred_cols,
-        "Estimate": beta,
-        "Std. Err": std_err,
-        "Pr(>)_boot": p_values,
-        "sig. code": sig_codes,
-        "95%CI": ci
-    })
+    coef_summary_df = pd.DataFrame(
+        {
+            "Pred_col": pred_cols,
+            "Estimate": beta,
+            "Std. Err": std_err,
+            "Pr(>)_boot": p_values,
+            "sig. code": sig_codes,
+            "95%CI": ci,
+        }
+    )
     return coef_summary_df, "0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1"
 
 
@@ -773,12 +855,15 @@ def get_ridge_coef_df(info_dict):
             "significance_code_legend" : `str`
                 The significance code legend.
     """
-    info_dict["coef_summary_df"], info_dict["significance_code_legend"] = get_ridge_summary_df_by_bootstrap(
+    (
+        info_dict["coef_summary_df"],
+        info_dict["significance_code_legend"],
+    ) = get_ridge_summary_df_by_bootstrap(
         x=info_dict["x"],
         y=info_dict["y"],
         beta=info_dict["beta"],
         alpha=info_dict["alpha"],
-        pred_cols=info_dict["pred_cols"]
+        pred_cols=info_dict["pred_cols"],
     )
     return info_dict
 
@@ -814,16 +899,14 @@ def get_lasso_coef_by_single_sample_split(info_dict):
     """
     # Gets indices for the split
     x_0, x_1, y_0, y_1 = train_test_split(
-        info_dict["x"],
-        info_dict["y"],
-        test_size=0.5,
-        shuffle=True)
+        info_dict["x"], info_dict["y"], test_size=0.5, shuffle=True
+    )
     # Performs lasso on x_0 and y_0
     model = clone(info_dict["ml_model"]).fit(x_0, y_0)
     # Gets nonzero features' index
     coef = model.coef_
     coef[0] = model.intercept_
-    nonzero_index = (model.coef_ != 0)
+    nonzero_index = model.coef_ != 0
     # Trains regular linear regression on the nonzero features with x_1 and y_1
     x_2 = x_1[:, nonzero_index]  # nonzero features only
     nonzero_beta = sm.OLS(y_1, x_2).fit().params
@@ -832,7 +915,7 @@ def get_lasso_coef_by_single_sample_split(info_dict):
     df_mse = x_2.shape[0] - np.trace(x_2 @ np.linalg.pinv(x_2.T @ x_2) @ x_2.T)
     y_pred = x_2 @ nonzero_beta
     residuals = y_1 - y_pred
-    mse = np.sum(residuals ** 2) / df_mse
+    mse = np.sum(residuals**2) / df_mse
     covariance = mse * np.linalg.pinv(x_2.T @ x_2)
     standard_err = np.sqrt(np.diag(covariance))  # nonzero standard errors
     # The standard errors for the zero betas are not one, but since they should not be
@@ -881,19 +964,27 @@ def get_lasso_coef_df_by_multi_sample_split(info_dict):
         if beta_estimates is None:
             beta_estimates = beta.reshape(-1, 1)
         else:
-            beta_estimates = np.concatenate([beta_estimates, beta.reshape(-1, 1)], axis=1)
+            beta_estimates = np.concatenate(
+                [beta_estimates, beta.reshape(-1, 1)], axis=1
+            )
         if standard_errs is None:
             standard_errs = standard_err.reshape(-1, 1)
         else:
-            standard_errs = np.concatenate([standard_errs, standard_err.reshape(-1, 1)], axis=1)
+            standard_errs = np.concatenate(
+                [standard_errs, standard_err.reshape(-1, 1)], axis=1
+            )
         df_mses = np.append(df_mses, df_mse)
     # Calculates nonzero probability for each feature coefficient
-    beta_nonzero_prob = np.count_nonzero(beta_estimates, axis=1) / beta_estimates.shape[1]
+    beta_nonzero_prob = (
+        np.count_nonzero(beta_estimates, axis=1) / beta_estimates.shape[1]
+    )
 
     # Calculates individual p-values
-    beta_estimates_p_values = np.where(beta_estimates != 0,
-                                       2 * t.cdf(-np.abs(beta_estimates / standard_errs), df_mses),
-                                       1)  # p-value is 1.0 for zero coefficients
+    beta_estimates_p_values = np.where(
+        beta_estimates != 0,
+        2 * t.cdf(-np.abs(beta_estimates / standard_errs), df_mses),
+        1,
+    )  # p-value is 1.0 for zero coefficients
     # Aggregates indivudual p-values
     # Reference: P-Values for High-dimensional Regression
     # by Meinshausen, Meier, Buhlmann
@@ -912,14 +1003,23 @@ def get_lasso_coef_df_by_multi_sample_split(info_dict):
             qjs = np.concatenate([qjs, qj.reshape(-1, 1)], axis=1)
     p_values = np.min(qjs, axis=1) * (1 - np.log(gamma_min))
     p_values = np.where(p_values < 1, p_values, 1)
-    sig_codes = ["***" if p < 0.001 else
-                 "**" if p < 0.01 else
-                 "*" if p < 0.05 else
-                 "." if p < 0.1 else
-                 " " for p in p_values]
+    sig_codes = [
+        "***"
+        if p < 0.001
+        else "**"
+        if p < 0.01
+        else "*"
+        if p < 0.05
+        else "."
+        if p < 0.1
+        else " "
+        for p in p_values
+    ]
 
     # Calculates p-value rankings, plus one because we want ranking to start with 1
-    p_value_rankings = (beta_estimates_p_values.argsort(axis=1) + 1) / beta_estimates_p_values.shape[1]
+    p_value_rankings = (
+        beta_estimates_p_values.argsort(axis=1) + 1
+    ) / beta_estimates_p_values.shape[1]
     # Calculates the confidence intervals
     # Reference: High-Dimensional Inference: Confidence Intervals, p-Values and R-Software hdi
     # by Dezeure, Buhlmann, Meier and Meinshausen
@@ -927,31 +1027,37 @@ def get_lasso_coef_df_by_multi_sample_split(info_dict):
     # Divides by 2 because we need half of the area on each side
     quantile = 1 - alpha * p_value_rankings / (1 - np.log(gamma_min)) / 2
     # Raveled dfs are applied along columns
-    ordinary_confidence_interval_lb = beta_estimates - t.ppf(quantile, df_mses.ravel()) * standard_errs
-    ordinary_confidence_interval_ub = beta_estimates + t.ppf(quantile, df_mses.ravel()) * standard_errs
+    ordinary_confidence_interval_lb = (
+        beta_estimates - t.ppf(quantile, df_mses.ravel()) * standard_errs
+    )
+    ordinary_confidence_interval_ub = (
+        beta_estimates + t.ppf(quantile, df_mses.ravel()) * standard_errs
+    )
 
     confidence_intervals = []
     for i in range(beta_estimates.shape[0]):
         if (beta_estimates[i] == 0).all():
-            confidence_intervals.append([0., 0.])
+            confidence_intervals.append([0.0, 0.0])
         else:
             check_index = (p_value_rankings[i] > gamma_min) & (beta_estimates[i] != 0)
             if check_index.sum() == 0:
-                confidence_intervals.append([0., 0.])
+                confidence_intervals.append([0.0, 0.0])
             else:
                 lb = np.min(ordinary_confidence_interval_lb[i, check_index])
                 ub = np.max(ordinary_confidence_interval_ub[i, check_index])
                 confidence_intervals.append([lb, ub])
 
     # Makes summary df
-    coef_summary_df = pd.DataFrame({
-        "Pred_col": info_dict["pred_cols"],
-        "Estimate": info_dict["beta"],
-        "Pr(>)_split": p_values,
-        "sig. code": sig_codes,
-        "95%CI": confidence_intervals,
-        "Prob_nonzero": beta_nonzero_prob
-    })
+    coef_summary_df = pd.DataFrame(
+        {
+            "Pred_col": info_dict["pred_cols"],
+            "Estimate": info_dict["beta"],
+            "Pr(>)_split": p_values,
+            "sig. code": sig_codes,
+            "95%CI": confidence_intervals,
+            "Prob_nonzero": beta_nonzero_prob,
+        }
+    )
     return coef_summary_df, "0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1"
 
 
@@ -978,7 +1084,10 @@ def get_lasso_coef_df(info_dict):
             "significance_code_legend" : `str`
                 The significance code legend.
     """
-    info_dict["coef_summary_df"], info_dict["significance_code_legend"] = get_lasso_coef_df_by_multi_sample_split(info_dict)
+    (
+        info_dict["coef_summary_df"],
+        info_dict["significance_code_legend"],
+    ) = get_lasso_coef_df_by_multi_sample_split(info_dict)
     return info_dict
 
 
@@ -1002,10 +1111,9 @@ def get_elasticnet_coef_df(info_dict):
             "coef_summary_df" : `pandas.DataFrame`
                 The summary df for estimated coefficients.
     """
-    info_dict["coef_summary_df"] = pd.DataFrame({
-        "Pred_col": info_dict["pred_cols"],
-        "Estimate": info_dict["beta"]
-    })
+    info_dict["coef_summary_df"] = pd.DataFrame(
+        {"Pred_col": info_dict["pred_cols"], "Estimate": info_dict["beta"]}
+    )
     return info_dict
 
 
@@ -1042,15 +1150,23 @@ def add_model_coef_df_lm(info_dict):
             "significance_code_legend" : `str`, optional
                 The significance code legend.
     """
-    if info_dict["fit_algorithm"] in ["statsmodels_ols", "statsmodels_wls", "statsmodels_gls", "linear"]:
+    if info_dict["fit_algorithm"] in [
+        "statsmodels_ols",
+        "statsmodels_wls",
+        "statsmodels_gls",
+        "linear",
+    ]:
         info_dict = get_ls_coef_df(info_dict)
     elif info_dict["fit_algorithm"] in ["statsmodels_glm"]:
         info_dict = get_glm_coef_df(info_dict)
-    elif (info_dict["fit_algorithm"] in ["ridge"]
-          or (info_dict["fit_algorithm"] in ["sgd", "elastic_net"] and info_dict["l1_ratio"] == 0)):
+    elif info_dict["fit_algorithm"] in ["ridge"] or (
+        info_dict["fit_algorithm"] in ["sgd", "elastic_net"]
+        and info_dict["l1_ratio"] == 0
+    ):
         info_dict = get_ridge_coef_df(info_dict)
-    elif (info_dict["fit_algorithm"] in ["lasso", "lars", "lasso_lars"]
-          or (info_dict["fit_algorithm"] in ["elastic_net"] and info_dict["l1_ratio"] == 1)):
+    elif info_dict["fit_algorithm"] in ["lasso", "lars", "lasso_lars"] or (
+        info_dict["fit_algorithm"] in ["elastic_net"] and info_dict["l1_ratio"] == 1
+    ):
         info_dict = get_lasso_coef_df(info_dict)
     elif info_dict["fit_algorithm"] in ["sgd", "elastic_net"]:
         info_dict = get_elasticnet_coef_df(info_dict)
@@ -1105,7 +1221,9 @@ def add_model_significance_lm(info_dict):
     """
     # Gets F-value and its p-value
     info_dict["f_value"] = info_dict["msr"] / info_dict["mse"]
-    info_dict["f_p_value"] = 1 - f.cdf(info_dict["f_value"], info_dict["df_ssr"], info_dict["df_sse"])
+    info_dict["f_p_value"] = 1 - f.cdf(
+        info_dict["f_value"], info_dict["df_ssr"], info_dict["df_sse"]
+    )
     # Gets R^2 and adjusted R^2
     info_dict["r2"] = 1 - info_dict["sse"] / info_dict["sst"]
     info_dict["r2_adj"] = 1 - info_dict["mse"] / info_dict["mst"]
@@ -1114,8 +1232,14 @@ def add_model_significance_lm(info_dict):
         info_dict["aic"] = info_dict["ml_model"].aic
         info_dict["bic"] = info_dict["ml_model"].bic
     else:
-        info_dict["aic"] = 2 * info_dict["reg_df"] + info_dict["n_sample"] * np.log(info_dict["sse"])  # Ignores the constants
-        info_dict["bic"] = np.log(info_dict["n_sample"]) * info_dict["reg_df"] + info_dict["n_sample"] * np.log(info_dict["sse"])  # Ignores the constants
+        info_dict["aic"] = 2 * info_dict["reg_df"] + info_dict["n_sample"] * np.log(
+            info_dict["sse"]
+        )  # Ignores the constants
+        info_dict["bic"] = np.log(info_dict["n_sample"]) * info_dict[
+            "reg_df"
+        ] + info_dict["n_sample"] * np.log(
+            info_dict["sse"]
+        )  # Ignores the constants
     return info_dict
 
 
@@ -1336,7 +1460,9 @@ def create_info_dict_tree(x, y, ml_model, fit_algorithm, pred_cols):
     info_dict["y_pred"] = ml_model.predict(x)
     info_dict["y_mean"] = np.mean(y)
     info_dict["residual"] = info_dict["y"] - info_dict["y_pred"]
-    info_dict["residual_summary"] = np.percentile(info_dict["residual"], [0, 25, 50, 75, 100])
+    info_dict["residual_summary"] = np.percentile(
+        info_dict["residual"], [0, 25, 50, 75, 100]
+    )
     return info_dict
 
 
@@ -1378,7 +1504,7 @@ def add_model_params_tree(info_dict):
     """
     fit_algorithm = info_dict["fit_algorithm"]
     ml_model = info_dict["ml_model"]
-    valid_tree_fit_algorithms = ["rf", "gradient_boosting"]
+    valid_tree_fit_algorithms = ["rf", "gradient_boosting", "hist_gradient_boosting"]
     if fit_algorithm in valid_tree_fit_algorithms:
         if fit_algorithm == "gradient_boosting":
             info_dict["model"] = "Gradient Boosting"
@@ -1387,6 +1513,13 @@ def add_model_params_tree(info_dict):
             info_dict["max_depth"] = ml_model.max_depth
             info_dict["subsample"] = ml_model.subsample
             info_dict["max_features"] = ml_model.max_features_
+        elif fit_algorithm == "hist_gradient_boosting":
+            info_dict["model"] = "Hist Gradient Boosting"
+            info_dict["num_tree"] = ml_model.n_iter_
+            info_dict["criterion"] = "None"
+            info_dict["max_depth"] = ml_model.max_depth
+            info_dict["subsample"] = 1.0
+            info_dict["max_features"] = 1.0
         elif fit_algorithm == "rf":
             info_dict["model"] = "Random Forest"
             info_dict["num_tree"] = ml_model.n_estimators
@@ -1395,8 +1528,10 @@ def add_model_params_tree(info_dict):
             info_dict["subsample"] = ml_model.max_samples
             info_dict["max_features"] = ml_model.max_features
     else:
-        raise ValueError(f"{fit_algorithm} is not a valid algorithm, it must be in "
-                         f"{valid_tree_fit_algorithms}.")
+        raise ValueError(
+            f"{fit_algorithm} is not a valid algorithm, it must be in "
+            f"{valid_tree_fit_algorithms}."
+        )
     return info_dict
 
 
@@ -1433,17 +1568,20 @@ def add_model_coef_df_tree(info_dict):
                     "Importance rank" : `int`
                         The rank of feature importance.
     """
-    feature_importance = info_dict["ml_model"].feature_importances_
-    # Gets ranks
-    temp = feature_importance.argsort()
-    ranks = np.empty_like(temp)
-    ranks[temp] = np.arange(len(feature_importance))
-    coef_df = pd.DataFrame({
-        "Pred_col": info_dict["pred_cols"],
-        "Feature importance": feature_importance,
-        "Importance rank": len(feature_importance) - ranks  # Reverse order
-    })
-    info_dict["coef_summary_df"] = coef_df
+    if hasattr(info_dict["ml_model"], "feature_importances_"):
+        feature_importance = info_dict["ml_model"].feature_importances_
+        # Gets ranks
+        temp = feature_importance.argsort()
+        ranks = np.empty_like(temp)
+        ranks[temp] = np.arange(len(feature_importance))
+        coef_df = pd.DataFrame(
+            {
+                "Pred_col": info_dict["pred_cols"],
+                "Feature importance": feature_importance,
+                "Importance rank": len(feature_importance) - ranks,  # Reverse order
+            }
+        )
+        info_dict["coef_summary_df"] = coef_df
     return info_dict
 
 
@@ -1585,41 +1723,64 @@ def format_summary_df(summary_df, max_colwidth=20):
         max_colname_length = max([len(name) for name in summary_df["Pred_col"]])
         summary_df_print["Pred_col"] = simplify_pred_cols(summary_df_print["Pred_col"])
         if max_colname_length > max_colwidth:
-            summary_df_print["Pred_col"] = [col if len(col) <= max_colwidth
-                                            else col[:int((max_colwidth - 3) // 2)]
-                                            + "..."
-                                            + col[-int((max_colwidth - 3) // 2):]
-                                            for col in summary_df_print["Pred_col"]]
+            summary_df_print["Pred_col"] = [
+                col
+                if len(col) <= max_colwidth
+                else col[: int((max_colwidth - 3) // 2)]
+                + "..."
+                + col[-int((max_colwidth - 3) // 2) :]
+                for col in summary_df_print["Pred_col"]
+            ]
         # Rounds columns
         if "Estimate" in summary_df_print.columns:
-            summary_df_print["Estimate"] = round_numbers(summary_df_print["Estimate"], 4)
+            summary_df_print["Estimate"] = round_numbers(
+                summary_df_print["Estimate"], 4
+            )
         if "Std. Err" in summary_df_print.columns:
-            summary_df_print["Std. Err"] = round_numbers(summary_df_print["Std. Err"], 4)
+            summary_df_print["Std. Err"] = round_numbers(
+                summary_df_print["Std. Err"], 4
+            )
         if "t value" in summary_df_print.columns:
             summary_df_print["t value"] = round_numbers(summary_df_print["t value"], 4)
         if "z value" in summary_df_print.columns:
             summary_df_print["z value"] = round_numbers(summary_df_print["z value"], 4)
         # Formats p-values
         if "Pr(>|t|)" in summary_df_print.columns:
-            summary_df_print["Pr(>|t|)"] = ["<2e-16" if val < 2e-16 else
-                                            "{:.2e}".format(val) if val < 1e-3 else
-                                            "{0:.3f}".format(val)
-                                            for val in summary_df_print["Pr(>|t|)"]]
+            summary_df_print["Pr(>|t|)"] = [
+                "<2e-16"
+                if val < 2e-16
+                else "{:.2e}".format(val)
+                if val < 1e-3
+                else "{0:.3f}".format(val)
+                for val in summary_df_print["Pr(>|t|)"]
+            ]
         if "Pr(>|Z|)" in summary_df_print.columns:
-            summary_df_print["Pr(>|Z|)"] = ["<2e-16" if val < 2e-16 else
-                                            "{:.2e}".format(val) if val < 1e-3 else
-                                            "{0:.3f}".format(val)
-                                            for val in summary_df_print["Pr(>|Z|)"]]
+            summary_df_print["Pr(>|Z|)"] = [
+                "<2e-16"
+                if val < 2e-16
+                else "{:.2e}".format(val)
+                if val < 1e-3
+                else "{0:.3f}".format(val)
+                for val in summary_df_print["Pr(>|Z|)"]
+            ]
         if "Pr(>)_boot" in summary_df_print.columns:
-            summary_df_print["Pr(>)_boot"] = ["<2e-16" if val < 2e-16 else
-                                              "{:.2e}".format(val) if val < 1e-3 else
-                                              "{0:.3f}".format(val)
-                                              for val in summary_df_print["Pr(>)_boot"]]
+            summary_df_print["Pr(>)_boot"] = [
+                "<2e-16"
+                if val < 2e-16
+                else "{:.2e}".format(val)
+                if val < 1e-3
+                else "{0:.3f}".format(val)
+                for val in summary_df_print["Pr(>)_boot"]
+            ]
         if "Pr(>)_split" in summary_df_print.columns:
-            summary_df_print["Pr(>)_split"] = ["<2e-16" if val < 2e-16 else
-                                               "{:.2e}".format(val) if val < 1e-3 else
-                                               "{0:.3f}".format(val)
-                                               for val in summary_df_print["Pr(>)_split"]]
+            summary_df_print["Pr(>)_split"] = [
+                "<2e-16"
+                if val < 2e-16
+                else "{:.2e}".format(val)
+                if val < 1e-3
+                else "{0:.3f}".format(val)
+                for val in summary_df_print["Pr(>)_split"]
+            ]
         # Formats confidence intervals
         if "95%CI" in summary_df_print.columns:
             lbs = round_numbers([ci[0] for ci in summary_df_print["95%CI"]], 4)
@@ -1627,7 +1788,9 @@ def format_summary_df(summary_df, max_colwidth=20):
             summary_df_print["95%CI"] = list(zip(lbs, ubs))
         # Formats feature importance for tree
         if "Feature importance" in summary_df_print.columns:
-            summary_df_print["Feature importance"] = round_numbers(summary_df_print["Feature importance"], 4)
+            summary_df_print["Feature importance"] = round_numbers(
+                summary_df_print["Feature importance"], 4
+            )
     return summary_df_print
 
 
@@ -1673,9 +1836,17 @@ def create_model_parameter_section(info_dict):
             content += ",   "
             content += f"Link function: {info_dict['link_function']}"
             content += "\n"
-        elif info_dict["fit_algorithm"] in ["ridge", "lasso", "lars", "lasso_lars",
-                                            "elastic_net", "sgd"]:
-            content += f"Regularization parameter: {round_numbers(info_dict['alpha'], 4)}"
+        elif info_dict["fit_algorithm"] in [
+            "ridge",
+            "lasso",
+            "lars",
+            "lasso_lars",
+            "elastic_net",
+            "sgd",
+        ]:
+            content += (
+                f"Regularization parameter: {round_numbers(info_dict['alpha'], 4)}"
+            )
             if info_dict["fit_algorithm"] in ["elastic_net", "sgd"]:
                 content += ",   "
                 content += f"l1_ratio: {round_numbers(info_dict['l1_ratio'], 4)}"
@@ -1713,8 +1884,13 @@ def create_residual_section(info_dict):
     """
     residual_summary = round_numbers(info_dict["residual_summary"], 4)
     content = "Residuals:\n"
-    content += "{:>12} {:>12} {:>12} {:>12} {:>12}".format("Min", "1Q", "Median", "3Q", "Max") + "\n"
-    content += "{:>12} {:>12} {:>12} {:>12} {:>12}".format(*list(residual_summary)) + "\n"
+    content += (
+        "{:>12} {:>12} {:>12} {:>12} {:>12}".format("Min", "1Q", "Median", "3Q", "Max")
+        + "\n"
+    )
+    content += (
+        "{:>12} {:>12} {:>12} {:>12} {:>12}".format(*list(residual_summary)) + "\n"
+    )
     content += "\n"
     return content
 
@@ -1739,12 +1915,16 @@ def create_coef_df_section(info_dict, max_colwidth=20):
     content : `str`
         The coefficient summary df section.
     """
-    content = format_summary_df(info_dict["coef_summary_df"], max_colwidth).to_string(index=False)
-    content += "\n"
-    if "significance_code_legend" in info_dict.keys():
-        content += f"Signif. Code: {info_dict['significance_code_legend']}"
+    content = ""
+    if hasattr(info_dict, "coef_summary_df"):
+        content = format_summary_df(
+            info_dict["coef_summary_df"], max_colwidth
+        ).to_string(index=False)
         content += "\n"
-    content += "\n"
+        if "significance_code_legend" in info_dict.keys():
+            content += f"Signif. Code: {info_dict['significance_code_legend']}"
+            content += "\n"
+        content += "\n"
     return content
 
 
@@ -1769,9 +1949,11 @@ def create_significance_section(info_dict):
         content += "   "
         content += f"Adjusted R-squared: {round_numbers(info_dict['r2_adj'], 4)}"
         content += "\n"
-        content += f"F-statistic: {round_numbers(info_dict['f_value'], 5)} " \
-                   f"on {int(info_dict['df_ssr'])} and" \
-                   f" {int(info_dict['df_sse'])} DF,"
+        content += (
+            f"F-statistic: {round_numbers(info_dict['f_value'], 5)} "
+            f"on {int(info_dict['df_ssr'])} and"
+            f" {int(info_dict['df_sse'])} DF,"
+        )
         content += "   "
         content += f"p-value: {round_numbers(info_dict['f_p_value'], 4)}"
         content += "\n"
@@ -1810,34 +1992,57 @@ def create_warning_section(info_dict):
     if info_dict["model_type"] == "lm":
         content = ""
         if info_dict["condition_number"] > 1000:
-            content += f"WARNING: the condition number is large, {'{:.2e}'.format(info_dict['condition_number'])}. " \
-                       f"This might indicate that there are strong multicollinearity " \
-                       f"or other numerical problems."
+            content += (
+                f"WARNING: the condition number is large, {'{:.2e}'.format(info_dict['condition_number'])}. "
+                f"This might indicate that there are strong multicollinearity "
+                f"or other numerical problems."
+            )
             content += "\n"
-        if info_dict["fit_algorithm"] in ["ridge", "lasso", "lars", "lasso_lars",
-                                          "sgd", "elastic_net"]:
-            content += "WARNING: the F-ratio and its p-value on regularized methods might be misleading, " \
-                       "they are provided only for reference purposes."
+        if info_dict["fit_algorithm"] in [
+            "ridge",
+            "lasso",
+            "lars",
+            "lasso_lars",
+            "sgd",
+            "elastic_net",
+        ]:
+            content += (
+                "WARNING: the F-ratio and its p-value on regularized methods might be misleading, "
+                "they are provided only for reference purposes."
+            )
             content += "\n"
         if info_dict["fit_algorithm"] in ["statsmodels_glm"]:
-            content += "WARNING: the R-squared and F-statistics on glm might be misleading, " \
-                       "they are provided only for reference purposes."
+            content += (
+                "WARNING: the R-squared and F-statistics on glm might be misleading, "
+                "they are provided only for reference purposes."
+            )
             content += "\n"
-        if (len(info_dict["nonzero_index"]) < info_dict["n_feature"]
-            and
-            info_dict["fit_algorithm"] in ["linear", "ridge", "statsmodels_ols",
-                                           "statsmodels_wls", "statsmodels_gls",
-                                           "statsmodels_glm"]):
-            content += "WARNING: the following columns have estimated coefficients equal to zero, " \
-                       f"while {info_dict['fit_algorithm']} is not supposed to have zero estimates. " \
-                       f"This is probably because these columns are degenerate in the design matrix. " \
-                       f"Make sure these columns do not have constant values." + "\n" +\
-                       f"{[col for i, col in enumerate(info_dict['pred_cols']) if i not in info_dict['nonzero_index']]}"
+        if len(info_dict["nonzero_index"]) < info_dict["n_feature"] and info_dict[
+            "fit_algorithm"
+        ] in [
+            "linear",
+            "ridge",
+            "statsmodels_ols",
+            "statsmodels_wls",
+            "statsmodels_gls",
+            "statsmodels_glm",
+        ]:
+            content += (
+                "WARNING: the following columns have estimated coefficients equal to zero, "
+                f"while {info_dict['fit_algorithm']} is not supposed to have zero estimates. "
+                f"This is probably because these columns are degenerate in the design matrix. "
+                f"Make sure these columns do not have constant values."
+                + "\n"
+                + f"{[col for i, col in enumerate(info_dict['pred_cols']) if i not in info_dict['nonzero_index']]}"
+            )
             content += "\n"
         if len(info_dict["degenerate_index"]) > 1:
-            content += "WARNING: the following columns are degenerate, do you really want to include them in your model? " \
-                       "This may cause some of them to show unrealistic significance. Consider using the `drop_degenerate` transformer." + "\n" +\
-                       f"{[col for i, col in enumerate(info_dict['pred_cols']) if i in info_dict['degenerate_index']]}"
+            content += (
+                "WARNING: the following columns are degenerate, do you really want to include them in your model? "
+                "This may cause some of them to show unrealistic significance. Consider using the `drop_degenerate` transformer."
+                + "\n"
+                + f"{[col for i, col in enumerate(info_dict['pred_cols']) if i in info_dict['degenerate_index']]}"
+            )
             content += "\n"
         if content == "":
             content = None

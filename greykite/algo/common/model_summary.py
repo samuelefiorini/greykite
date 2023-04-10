@@ -65,14 +65,15 @@ class ModelSummary:
     """
 
     def __init__(
-            self,
-            x,
-            y,
-            pred_cols,
-            pred_category,
-            fit_algorithm,
-            ml_model,  # needs to support cloning if ml_model implements a lasso method
-            max_colwidth=20):
+        self,
+        x,
+        y,
+        pred_cols,
+        pred_category,
+        fit_algorithm,
+        ml_model,  # needs to support cloning if ml_model implements a lasso method
+        max_colwidth=20,
+    ):
         # process x, beta and pred_cols to include the intercept term
         beta = getattr(ml_model, "coef_", None)
         intercept = getattr(ml_model, "intercept_", None)
@@ -90,13 +91,11 @@ class ModelSummary:
         self.html_str = f"<pre>{self.__str__()}</pre>"
 
     def __str__(self):
-        """print method.
-        """
+        """print method."""
         return print_summary(self.info_dict, self.max_colwidth)
 
     def __repr__(self):
-        """print method
-        """
+        """print method"""
         return print_summary(self.info_dict, self.max_colwidth)
 
     def _get_summary(self):
@@ -111,39 +110,58 @@ class ModelSummary:
             or
             `~greykite.algo.common.model_summary_utils.get_info_dict_tree`.
         """
-        if self.fit_algorithm in ["linear", "ridge", "lasso", "lars", "lasso_lars",
-                                  "sgd", "elastic_net", "statsmodels_ols",
-                                  "statsmodels_wls", "statsmodels_gls", "statsmodels_glm"]:
+        if self.fit_algorithm in [
+            "linear",
+            "ridge",
+            "lasso",
+            "lars",
+            "lasso_lars",
+            "sgd",
+            "elastic_net",
+            "statsmodels_ols",
+            "statsmodels_wls",
+            "statsmodels_gls",
+            "statsmodels_glm",
+        ]:
             info_dict = get_info_dict_lm(
                 x=self.x,
                 y=self.y,
                 beta=self.beta,
                 ml_model=self.ml_model,
                 fit_algorithm=self.fit_algorithm,
-                pred_cols=self.pred_cols)
-        elif self.fit_algorithm in ["rf", "gradient_boosting"]:
+                pred_cols=self.pred_cols,
+            )
+        elif self.fit_algorithm in [
+            "rf",
+            "gradient_boosting",
+            "hist_gradient_boosting",
+        ]:
             info_dict = get_info_dict_tree(
                 x=self.x,
                 y=self.y,
                 ml_model=self.ml_model,
                 fit_algorithm=self.fit_algorithm,
-                pred_cols=self.pred_cols)
+                pred_cols=self.pred_cols,
+            )
         else:
-            raise NotImplementedError(f"{self.fit_algorithm} is not recognized, "
-                                      f"summary is not implemented.")
+            raise NotImplementedError(
+                f"{self.fit_algorithm} is not recognized, "
+                f"summary is not implemented."
+            )
         return info_dict
 
     def get_coef_summary(
-            self,
-            is_intercept=None,
-            is_time_feature=None,
-            is_event=None,
-            is_trend=None,
-            is_seasonality=None,
-            is_lag=None,
-            is_regressor=None,
-            is_interaction=None,
-            return_df=False):
+        self,
+        is_intercept=None,
+        is_time_feature=None,
+        is_event=None,
+        is_trend=None,
+        is_seasonality=None,
+        is_lag=None,
+        is_regressor=None,
+        is_interaction=None,
+        return_df=False,
+    ):
         """Gets the coefficient summary filtered by conditions.
 
         Parameters
@@ -191,7 +209,8 @@ class ModelSummary:
             is_seasonality=is_seasonality,
             is_lag=is_lag,
             is_regressor=is_regressor,
-            is_interaction=is_interaction)
+            is_interaction=is_interaction,
+        )
         # excludes column categories
         cols = [col for col in filtered_coef_summary.columns if "is_" not in col]
         print(format_summary_df(filtered_coef_summary[cols]).to_string(index=False))

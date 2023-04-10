@@ -40,6 +40,7 @@ import statsmodels.api as sm
 from pandas.plotting import register_matplotlib_converters
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.linear_model import ElasticNetCV
 from sklearn.linear_model import LarsCV
 from sklearn.linear_model import LassoCV
@@ -68,8 +69,7 @@ import matplotlib.pyplot as plt  # isort:skip # noqa: E402
 register_matplotlib_converters()
 
 
-def get_intercept_col_from_design_mat(
-        x_mat: pd.DataFrame) -> Optional[str]:
+def get_intercept_col_from_design_mat(x_mat: pd.DataFrame) -> Optional[str]:
     """Gets the explicit or implicit intercept column name from `patsy` design matrix.
 
     By default, `patsy` will make the design matrix always full rank.
@@ -119,12 +119,13 @@ def get_intercept_col_from_design_mat(
 
 
 def design_mat_from_formula(
-        df: pd.DataFrame,
-        model_formula_str: str,
-        y_col: Optional[str] = None,
-        pred_cols: Optional[List[str]] = None,
-        remove_intercept: bool = False) -> Dict:
-    """ Given a formula it extracts the response vector (y)
+    df: pd.DataFrame,
+    model_formula_str: str,
+    y_col: Optional[str] = None,
+    pred_cols: Optional[List[str]] = None,
+    remove_intercept: bool = False,
+) -> Dict:
+    """Given a formula it extracts the response vector (y)
     and builds the design matrix (x_mat).
 
     Parameters
@@ -168,15 +169,10 @@ def design_mat_from_formula(
     """
     intercept_col = None
     if model_formula_str is not None:
-        y, x_mat = patsy.dmatrices(
-            model_formula_str,
-            data=df,
-            return_type="dataframe")
+        y, x_mat = patsy.dmatrices(model_formula_str, data=df, return_type="dataframe")
         x_design_info = x_mat.design_info
         if remove_intercept:
-            intercept_col = get_intercept_col_from_design_mat(
-                x_mat=x_mat
-            )
+            intercept_col = get_intercept_col_from_design_mat(x_mat=x_mat)
             if intercept_col is not None:
                 x_mat = x_mat.drop(columns=intercept_col)
         pred_cols = list(x_mat.columns)
@@ -189,7 +185,8 @@ def design_mat_from_formula(
         x_design_info = None
     else:
         raise Exception(
-            f"Either provide a model expression or both y_col and pred_cols.")
+            f"Either provide a model expression or both y_col and pred_cols."
+        )
 
     return {
         "y": y,
@@ -197,16 +194,13 @@ def design_mat_from_formula(
         "x_mat": x_mat,
         "pred_cols": pred_cols,
         "x_design_info": x_design_info,
-        "drop_intercept_col": intercept_col
+        "drop_intercept_col": intercept_col,
     }
 
 
 def fit_model_via_design_matrix(
-        x_train,
-        y_train,
-        fit_algorithm,
-        sample_weight=None,
-        fit_algorithm_params=None):
+    x_train, y_train, fit_algorithm, sample_weight=None, fit_algorithm_params=None
+):
     """Fits the predictive model and returns the prediction function.
 
     Parameters
@@ -221,20 +215,21 @@ def fit_model_via_design_matrix(
 
         Available models are:
 
-            - ``"statsmodels_ols"``   : `statsmodels.regression.linear_model.OLS`
-            - ``"statsmodels_wls"``   : `statsmodels.regression.linear_model.WLS`
-            - ``"statsmodels_gls"``   : `statsmodels.regression.linear_model.GLS`
-            - ``"statsmodels_glm"``   : `statsmodels.genmod.generalized_linear_model.GLM`
-            - ``"linear"``            : `statsmodels.regression.linear_model.OLS`
-            - ``"elastic_net"``       : `sklearn.linear_model.ElasticNetCV`
-            - ``"ridge"``             : `sklearn.linear_model.RidgeCV`
-            - ``"lasso"``             : `sklearn.linear_model.LassoCV`
-            - ``"sgd"``               : `sklearn.linear_model.SGDRegressor`
-            - ``"lars"``              : `sklearn.linear_model.LarsCV`
-            - ``"lasso_lars"``        : `sklearn.linear_model.LassoLarsCV`
-            - ``"rf"``                : `sklearn.ensemble.RandomForestRegressor`
-            - ``"gradient_boosting"`` : `sklearn.ensemble.GradientBoostingRegressor`
-            - ``"quantile_regression"`` : `~greykite.algo.common.l1_quantile_regression.QuantileRegression`
+            - ``"statsmodels_ols"``        : `statsmodels.regression.linear_model.OLS`
+            - ``"statsmodels_wls"``        : `statsmodels.regression.linear_model.WLS`
+            - ``"statsmodels_gls"``        : `statsmodels.regression.linear_model.GLS`
+            - ``"statsmodels_glm"``        : `statsmodels.genmod.generalized_linear_model.GLM`
+            - ``"linear"``                 : `statsmodels.regression.linear_model.OLS`
+            - ``"elastic_net"``            : `sklearn.linear_model.ElasticNetCV`
+            - ``"ridge"``                  : `sklearn.linear_model.RidgeCV`
+            - ``"lasso"``                  : `sklearn.linear_model.LassoCV`
+            - ``"sgd"``                    : `sklearn.linear_model.SGDRegressor`
+            - ``"lars"``                   : `sklearn.linear_model.LarsCV`
+            - ``"lasso_lars"``             : `sklearn.linear_model.LassoLarsCV`
+            - ``"rf"``                     : `sklearn.ensemble.RandomForestRegressor`
+            - ``"gradient_boosting"``      : `sklearn.ensemble.GradientBoostingRegressor`
+            - ``"hist_gradient_boosting"`` : `sklearn.ensemble.HistGradientBoostingRegressor`
+            - ``"quantile_regression"``    : `~greykite.algo.common.l1_quantile_regression.QuantileRegression`
 
         See `~greykite.algo.common.ml_models.fit_model_via_design_matrix`
         for the sklearn and statsmodels classes that implement these methods, and their parameters.
@@ -272,7 +267,8 @@ def fit_model_via_design_matrix(
         "lasso_lars": LassoLarsCV,
         "rf": RandomForestRegressor,
         "gradient_boosting": GradientBoostingRegressor,
-        "quantile_regression": QuantileRegression
+        "hist_gradient_boosting": HistGradientBoostingRegressor,
+        "quantile_regression": QuantileRegression,
     }
 
     # for our purposes, we may want different defaults from those provided in the classes
@@ -281,17 +277,24 @@ def fit_model_via_design_matrix(
         "statsmodels_ols": dict(),
         "statsmodels_wls": dict(),
         "statsmodels_gls": dict(),
-        "statsmodels_glm": dict(family=sm.families.Gamma()),  # default is gamma distribution
+        "statsmodels_glm": dict(
+            family=sm.families.Gamma()
+        ),  # default is gamma distribution
         "linear": dict(),
         "elastic_net": dict(cv=5),
-        "ridge": dict(cv=5, alphas=np.logspace(-5, 5, 30)),  # by default RidgeCV only has 3 candidate alphas, not enough
+        "ridge": dict(
+            cv=5, alphas=np.logspace(-5, 5, 30)
+        ),  # by default RidgeCV only has 3 candidate alphas, not enough
         "lasso": dict(cv=5),
         "sgd": dict(),
         "lars": dict(cv=5),
         "lasso_lars": dict(cv=5),
         "rf": dict(n_estimators=100),
         "gradient_boosting": dict(),
-        "quantile_regression": dict(quantile=0.5, alpha=0)  # unregularized version modeling median
+        "hist_gradient_boosting": dict(),
+        "quantile_regression": dict(
+            quantile=0.5, alpha=0
+        ),  # unregularized version modeling median
     }
 
     # Re-standardizes the weights so that they sum up to data length
@@ -301,12 +304,15 @@ def fit_model_via_design_matrix(
         if fit_algorithm not in ["ridge", "statsmodels_wls"]:
             raise ValueError(
                 "sample weights are passed. "
-                f"However {fit_algorithm} does not support weighted regression.")
+                f"However {fit_algorithm} does not support weighted regression."
+            )
         sample_weight = len(sample_weight) * sample_weight / sum(sample_weight)
 
     if fit_algorithm not in fit_algorithm_dict.keys():
-        raise ValueError(f"The fit algorithm requested was not found: {fit_algorithm}. "
-                         f"Must be one of {list(fit_algorithm_dict.keys())}")
+        raise ValueError(
+            f"The fit algorithm requested was not found: {fit_algorithm}. "
+            f"Must be one of {list(fit_algorithm_dict.keys())}"
+        )
 
     # overwrites default params with those provided by user
     params = default_fit_algorithm_params.get(fit_algorithm, {})
@@ -317,31 +323,23 @@ def fit_model_via_design_matrix(
     if "statsmodels" in fit_algorithm or fit_algorithm == "linear":
         if fit_algorithm == "statsmodels_wls" and sample_weight is not None:
             ml_model = fit_algorithm_dict[fit_algorithm](
-                endog=y_train,
-                exog=x_train,
-                weights=sample_weight,
-                **params)
+                endog=y_train, exog=x_train, weights=sample_weight, **params
+            )
         else:
             ml_model = fit_algorithm_dict[fit_algorithm](
-                endog=y_train,
-                exog=x_train,
-                **params)
+                endog=y_train, exog=x_train, **params
+            )
         ml_model = ml_model.fit()
         # Adds .coef_ and .intercept_ to statsmodels, so we could fetch parameters from .coef_ for all models.
         # Intercept is already included in params, setting .intercept_=0 in case it is needed.
         ml_model.coef_ = ml_model.params
-        ml_model.intercept_ = 0.
+        ml_model.intercept_ = 0.0
     else:
         ml_model = fit_algorithm_dict[fit_algorithm](**params)
         if fit_algorithm == "ridge":
-            ml_model.fit(
-                X=x_train,
-                y=y_train,
-                sample_weight=sample_weight)
+            ml_model.fit(X=x_train, y=y_train, sample_weight=sample_weight)
         else:
-            ml_model.fit(
-                X=x_train,
-                y=y_train)
+            ml_model.fit(X=x_train, y=y_train)
 
     return ml_model
 
@@ -379,18 +377,19 @@ def get_h_mat(x_mat, alpha):
 
 
 def fit_ml_model(
-        df,
-        model_formula_str=None,
-        fit_algorithm="linear",
-        fit_algorithm_params=None,
-        y_col=None,
-        pred_cols=None,
-        min_admissible_value=None,
-        max_admissible_value=None,
-        uncertainty_dict=None,
-        normalize_method="zero_to_one",
-        regression_weight_col=None,
-        remove_intercept=False):
+    df,
+    model_formula_str=None,
+    fit_algorithm="linear",
+    fit_algorithm_params=None,
+    y_col=None,
+    pred_cols=None,
+    min_admissible_value=None,
+    max_admissible_value=None,
+    uncertainty_dict=None,
+    normalize_method="zero_to_one",
+    regression_weight_col=None,
+    remove_intercept=False,
+):
     """Fits predictive ML (machine learning) models to continuous
     response vector (given in ``y_col``)
     and returns fitted model.
@@ -483,7 +482,7 @@ def fit_ml_model(
         model_formula_str=model_formula_str,
         y_col=y_col,
         pred_cols=pred_cols,
-        remove_intercept=remove_intercept
+        remove_intercept=remove_intercept,
     )
 
     y = res["y"]
@@ -504,7 +503,8 @@ def fit_ml_model(
             df=x_mat[cols],
             method=normalize_method,
             drop_degenerate_cols=False,
-            replace_zero_denom=True)
+            replace_zero_denom=True,
+        )
         x_mat[cols] = normalize_info["normalized_df"]
         x_mat = x_mat.fillna(value=0)
         normalize_df_func = normalize_info["normalize_df_func"]
@@ -514,7 +514,8 @@ def fit_ml_model(
         if df[regression_weight_col].min() < 0:
             raise ValueError(
                 "Weights can not be negative. "
-                f"The column {regression_weight_col} includes negative values.")
+                f"The column {regression_weight_col} includes negative values."
+            )
         sample_weight = df[regression_weight_col]
 
     # Prediction model generated by using all observed data.
@@ -523,7 +524,8 @@ def fit_ml_model(
         y_train=y,
         fit_algorithm=fit_algorithm,
         fit_algorithm_params=fit_algorithm_params,
-        sample_weight=sample_weight)
+        sample_weight=sample_weight,
+    )
 
     # Obtains `alpha`, `p_effective`, `h_mat` (H), and `sigma_scaler`.
     # See comments below the variables.
@@ -575,11 +577,15 @@ def fit_ml_model(
                 # Computes the effective number of parameters.
                 # Note that `p_effective` is the trace of `X @ h_mat` plus 1 for intercept, however
                 # computing `trace(h_mat @ X)` is more efficient due to much faster matrix multiplication.
-                p_effective = round(np.trace(h_mat @ X), 6) + 1  # Avoids floating issues e.g. 1.9999999999999998.
+                p_effective = (
+                    round(np.trace(h_mat @ X), 6) + 1
+                )  # Avoids floating issues e.g. 1.9999999999999998.
         except np.linalg.LinAlgError as e:
             message = traceback.format_exc()
-            warning_msg = f"Error '{e}' occurred when computing `h_mat`, no variance scaling is done!\n" \
-                          f"{message}"
+            warning_msg = (
+                f"Error '{e}' occurred when computing `h_mat`, no variance scaling is done!\n"
+                f"{message}"
+            )
             log_message(warning_msg, LoggingLevelEnum.WARNING)
             warnings.warn(warning_msg)
 
@@ -587,10 +593,12 @@ def fit_ml_model(
             # Computes scaler on sigma estimate.
             sigma_scaler = np.sqrt((n_train - 1) / (n_train - p_effective))
         else:
-            warnings.warn(f"Zero degrees of freedom ({n_train}-{p_effective}) or the inverse solver failed. "
-                          f"Likely caused by singular `X.T @ X + alpha * np.eye(p)`. "
-                          f"Please check \"x_mat\", \"alpha\". "
-                          f"`sigma_scaler` cannot be computed!")
+            warnings.warn(
+                f"Zero degrees of freedom ({n_train}-{p_effective}) or the inverse solver failed. "
+                f"Likely caused by singular `X.T @ X + alpha * np.eye(p)`. "
+                f'Please check "x_mat", "alpha". '
+                f"`sigma_scaler` cannot be computed!"
+            )
 
     # Uncertainty model is fitted if `uncertainty_dict` is passed.
     uncertainty_model = None
@@ -600,9 +608,8 @@ def fit_ml_model(
             # Resets index to match behavior of predict before assignment.
             new_df = df.reset_index(drop=True)
             (new_x_mat,) = patsy.build_design_matrices(
-                [x_design_info],
-                data=new_df,
-                return_type="dataframe")
+                [x_design_info], data=new_df, return_type="dataframe"
+            )
             if drop_intercept_col is not None:
                 new_x_mat = new_x_mat.drop(columns=drop_intercept_col)
             if normalize_df_func is not None:
@@ -619,7 +626,8 @@ def fit_ml_model(
             # with values best suited to this case.
             conf_interval_params = {
                 "quantiles": [0.025, 0.975],
-                "sample_size_thresh": 10}
+                "sample_size_thresh": 10,
+            }
 
             if uncertainty_dict["params"] is not None:
                 conf_interval_params.update(uncertainty_dict["params"])
@@ -632,10 +640,12 @@ def fit_ml_model(
                 x_mean=x_mean,
                 min_admissible_value=min_admissible_value,
                 max_admissible_value=max_admissible_value,
-                **conf_interval_params)
+                **conf_interval_params,
+            )
         else:
             raise NotImplementedError(
-                f"uncertainty method: {uncertainty_method} is not implemented")
+                f"uncertainty method: {uncertainty_method} is not implemented"
+            )
 
     # We get the model summary for a subset of models
     # where summary is available (`statsmodels` module),
@@ -646,9 +656,7 @@ def fit_ml_model(
     elif hasattr(ml_model, "coef_"):
         var_names = list(x_mat.columns)
         coefs = ml_model.coef_
-        ml_model_summary = pd.DataFrame({
-            "variable": var_names,
-            "coef": coefs})
+        ml_model_summary = pd.DataFrame({"variable": var_names, "coef": coefs})
 
     trained_model = {
         "y": y,
@@ -668,25 +676,22 @@ def fit_ml_model(
         "alpha": alpha,
         "h_mat": h_mat,
         "p_effective": p_effective,
-        "sigma_scaler": sigma_scaler}
+        "sigma_scaler": sigma_scaler,
+    }
 
     if uncertainty_dict is None:
-        fitted_df = predict_ml(
-            fut_df=df,
-            trained_model=trained_model)["fut_df"]
+        fitted_df = predict_ml(fut_df=df, trained_model=trained_model)["fut_df"]
     else:
-        fitted_df = predict_ml_with_uncertainty(
-            fut_df=df,
-            trained_model=trained_model)["fut_df"]
+        fitted_df = predict_ml_with_uncertainty(fut_df=df, trained_model=trained_model)[
+            "fut_df"
+        ]
 
     trained_model["fitted_df"] = fitted_df
 
     return trained_model
 
 
-def predict_ml(
-        fut_df,
-        trained_model):
+def predict_ml(fut_df, trained_model):
     """Returns predictions on new data using the machine-learning (ml) model
     fitted via ``fit_ml_model``.
 
@@ -715,9 +720,8 @@ def predict_ml(
     # reset indices to avoid issues when adding new cols
     fut_df = fut_df.reset_index(drop=True)
     (x_mat,) = patsy.build_design_matrices(
-        [x_design_info],
-        data=fut_df,
-        return_type="dataframe")
+        [x_design_info], data=fut_df, return_type="dataframe"
+    )
     if drop_intercept_col is not None:
         x_mat = x_mat.drop(columns=drop_intercept_col)
     if trained_model["normalize_df_func"] is not None:
@@ -730,19 +734,14 @@ def predict_ml(
     y_pred = ml_model.predict(x_mat)
     if min_admissible_value is not None or max_admissible_value is not None:
         y_pred = np.clip(
-            a=y_pred,
-            a_min=min_admissible_value,
-            a_max=max_admissible_value)
+            a=y_pred, a_min=min_admissible_value, a_max=max_admissible_value
+        )
     fut_df[y_col] = y_pred.tolist()
 
-    return {
-        "fut_df": fut_df,
-        "x_mat": x_mat}
+    return {"fut_df": fut_df, "x_mat": x_mat}
 
 
-def predict_ml_with_uncertainty(
-        fut_df,
-        trained_model):
+def predict_ml_with_uncertainty(fut_df, trained_model):
     """Returns predictions and prediction intervals on new data using
     the machine-learning (ml) model
     fitted via ``fit_ml_model`` and the uncertainty model fitted via
@@ -765,9 +764,7 @@ def predict_ml_with_uncertainty(
     # Gets point predictions.
     fut_df = fut_df.reset_index(drop=True)
     y_col = trained_model["y_col"]
-    pred_res = predict_ml(
-        fut_df=fut_df,
-        trained_model=trained_model)
+    pred_res = predict_ml(fut_df=fut_df, trained_model=trained_model)
 
     y_pred = pred_res["fut_df"][y_col]
     x_mat = pred_res["x_mat"]
@@ -776,32 +773,30 @@ def predict_ml_with_uncertainty(
 
     # Applies uncertainty model.
     pred_df_with_uncertainty = predict_ci(
-        fut_df,
-        trained_model["uncertainty_model"],
-        x_mat=x_mat)
+        fut_df, trained_model["uncertainty_model"], x_mat=x_mat
+    )
 
-    return {
-        "fut_df": pred_df_with_uncertainty,
-        "x_mat": x_mat}
+    return {"fut_df": pred_df_with_uncertainty, "x_mat": x_mat}
 
 
 def fit_ml_model_with_evaluation(
-        df,
-        model_formula_str=None,
-        y_col=None,
-        pred_cols=None,
-        fit_algorithm="linear",
-        fit_algorithm_params=None,
-        ind_train=None,
-        ind_test=None,
-        training_fraction=0.9,
-        randomize_training=False,
-        min_admissible_value=None,
-        max_admissible_value=None,
-        uncertainty_dict=None,
-        normalize_method="zero_to_one",
-        regression_weight_col=None,
-        remove_intercept=False):
+    df,
+    model_formula_str=None,
+    y_col=None,
+    pred_cols=None,
+    fit_algorithm="linear",
+    fit_algorithm_params=None,
+    ind_train=None,
+    ind_test=None,
+    training_fraction=0.9,
+    randomize_training=False,
+    min_admissible_value=None,
+    max_admissible_value=None,
+    uncertainty_dict=None,
+    normalize_method="zero_to_one",
+    regression_weight_col=None,
+    remove_intercept=False,
+):
     """Fits prediction models to continuous response vector (y)
     and report results.
 
@@ -911,14 +906,16 @@ def fit_ml_model_with_evaluation(
         nrows = df.shape[0]
         warnings.warn(
             f"The data frame included {nrows_original-nrows} row(s) with NAs which were removed for model fitting.",
-            UserWarning)
+            UserWarning,
+        )
         if nrows <= 2:
             raise ValueError(
                 f"Model training requires at least 3 observations, but the dataframe passed "
                 f"to training has {nrows} rows after removing NAs."
                 f"Sometimes this can be caused by unnecessary columns in your training data "
                 f"which contain NAs. Make sure to remove unnecessary columns from data before "
-                f"passing it to the function.")
+                f"passing it to the function."
+            )
 
     # an internal function for fitting model
     # this is wrapped into a function since we can do evaluations
@@ -934,7 +931,8 @@ def fit_ml_model_with_evaluation(
         uncertainty_dict=uncertainty_dict,
         normalize_method=normalize_method,
         regression_weight_col=regression_weight_col,
-        remove_intercept=remove_intercept)
+        remove_intercept=remove_intercept,
+    )
 
     # we store the obtained ``y_col`` from the function in a new variable (``y_col_final``)
     # this is done since the input y_col could be None
@@ -951,9 +949,12 @@ def fit_ml_model_with_evaluation(
             warnings.warn(
                 "Testing set indices exceed the size of the dataset."
                 "Setting max index of the Test set "
-                "equal to the max index of the dataset.")
+                "equal to the max index of the dataset."
+            )
             ind_test = [x for x in ind_test if x < n]
-    elif ind_train is None and training_fraction is not None and training_fraction < 1.0:
+    elif (
+        ind_train is None and training_fraction is not None and training_fraction < 1.0
+    ):
         k = round(n * training_fraction)
         k = int(k)
         ind_train = range(k)
@@ -979,7 +980,9 @@ def fit_ml_model_with_evaluation(
         y_train_pred = predict_ml(
             fut_df=df,
             trained_model=trained_model,
-            )["fut_df"][y_col_final].tolist()
+        )[
+            "fut_df"
+        ][y_col_final].tolist()
 
         def plt_pred():
             plt.plot(ind_train, y_train, label="full data", alpha=0.4)
@@ -988,6 +991,7 @@ def fit_ml_model_with_evaluation(
             plt.ylabel("value")
             plt.title("fit on the whole dataset")
             plt.legend()
+
     else:
         # validation: fit with df_train only and predict with df_test
         # first remove responses from df_test
@@ -1003,25 +1007,22 @@ def fit_ml_model_with_evaluation(
             uncertainty_dict=uncertainty_dict,
             normalize_method=normalize_method,
             regression_weight_col=regression_weight_col,
-            remove_intercept=remove_intercept)
+            remove_intercept=remove_intercept,
+        )
 
-        y_train_pred = predict_ml(
-            fut_df=df_train,
-            trained_model=trained_model_tr)["fut_df"][y_col_final].tolist()
+        y_train_pred = predict_ml(fut_df=df_train, trained_model=trained_model_tr)[
+            "fut_df"
+        ][y_col_final].tolist()
 
-        y_test_pred = predict_ml(
-            fut_df=df_test,
-            trained_model=trained_model_tr)["fut_df"][y_col_final].tolist()
+        y_test_pred = predict_ml(fut_df=df_test, trained_model=trained_model_tr)[
+            "fut_df"
+        ][y_col_final].tolist()
 
-        test_evaluation = calc_pred_err(
-            y_true=y_test,
-            y_pred=y_test_pred)
+        test_evaluation = calc_pred_err(y_true=y_test, y_pred=y_test_pred)
 
         test_evaluation[R2_null_model_score] = r2_null_model_score(
-            y_true=y_test,
-            y_pred=y_test_pred,
-            y_pred_null=y_train.mean(),
-            y_train=None)
+            y_true=y_test, y_pred=y_test_pred, y_pred_null=y_train.mean(), y_train=None
+        )
 
         def plt_compare_test():
             plt.scatter(y_test, y_test_pred, color="red", alpha=0.05)
@@ -1039,14 +1040,10 @@ def fit_ml_model_with_evaluation(
             plt.title("training and test fits")
             plt.legend()
 
-    training_evaluation = calc_pred_err(
-        y_true=y_train,
-        y_pred=y_train_pred)
+    training_evaluation = calc_pred_err(y_true=y_train, y_pred=y_train_pred)
     training_evaluation[R2_null_model_score] = r2_null_model_score(
-        y_true=y_train,
-        y_pred=y_train_pred,
-        y_pred_null=y_train.mean(),
-        y_train=None)
+        y_true=y_train, y_pred=y_train_pred, y_pred_null=y_train.mean(), y_train=None
+    )
 
     trained_model["summary"] = None
     trained_model["y"] = df[y_col_final]
@@ -1063,15 +1060,16 @@ def fit_ml_model_with_evaluation(
 
 
 def breakdown_regression_based_prediction(
-        trained_model,
-        x_mat,
-        grouping_regex_patterns_dict,
-        remainder_group_name="OTHER",
-        center_components=False,
-        denominator=None,
-        index_values=None,
-        index_col="index_col",
-        plt_title="prediction breakdown"):
+    trained_model,
+    x_mat,
+    grouping_regex_patterns_dict,
+    remainder_group_name="OTHER",
+    center_components=False,
+    denominator=None,
+    index_values=None,
+    index_col="index_col",
+    plt_title="prediction breakdown",
+):
     """Given a regression based ML model (``ml_model``) and a design matrix
     (``x_mat``), and a string based grouping rule (``grouping_regex_patterns_dict``)
     for the design matrix columnns, constructs a dataframe with columns corresponding
@@ -1148,7 +1146,9 @@ def breakdown_regression_based_prediction(
 
     """
     if index_values is not None:
-        assert len(index_values) == len(x_mat), "the number of indices must match the size of data"
+        assert len(index_values) == len(
+            x_mat
+        ), "the number of indices must match the size of data"
 
     ml_model = trained_model["ml_model"]
     # The dataframe which includes the group sums
@@ -1173,8 +1173,8 @@ def breakdown_regression_based_prediction(
     group_names = list(grouping_regex_patterns_dict.keys())
 
     column_grouping_result = group_strs_with_regex_patterns(
-        strings=cols,
-        regex_patterns=regex_patterns)
+        strings=cols, regex_patterns=regex_patterns
+    )
 
     col_groups = column_grouping_result["str_groups"]
     remainder = column_grouping_result["remainder"]
@@ -1220,11 +1220,12 @@ def breakdown_regression_based_prediction(
         df=breakdown_df_with_index_col,
         x_col=index_col,
         title=plt_title,
-        ylabel="component")
+        ylabel="component",
+    )
 
     return {
         "breakdown_df": breakdown_df,
         "breakdown_df_with_index_col": breakdown_df_with_index_col,
         "breakdown_fig": breakdown_fig,
-        "column_grouping_result": column_grouping_result
+        "column_grouping_result": column_grouping_result,
     }
