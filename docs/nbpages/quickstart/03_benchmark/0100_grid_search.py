@@ -75,22 +75,19 @@ seasonality = {
     "quarterly_seasonality": False,
     "monthly_seasonality": False,
     "weekly_seasonality": False,
-    "daily_seasonality": False
+    "daily_seasonality": False,
 }
 
 changepoints = {
     # Changepoints could be None or auto.
-    "changepoints_dict": [
-        None,
-        {"method": "auto"}
-    ]
+    "changepoints_dict": [None, {"method": "auto"}]
 }
 
 # Specifies custom parameters
 custom = {
     "fit_algorithm_dict": [
         {"fit_algorithm": "ridge"},
-        {"fit_algorithm": "linear", "fit_algorithm_params": dict(missing="drop")}
+        {"fit_algorithm": "linear", "fit_algorithm_params": dict(missing="drop")},
     ]
 }
 
@@ -98,19 +95,19 @@ custom = {
 # Could leave the other components as default,
 # or specify them in the normal way.
 model_components = ModelComponentsParam(
-    seasonality=seasonality,
-    changepoints=changepoints,
-    custom=custom
+    seasonality=seasonality, changepoints=changepoints, custom=custom
 )
 
 # Specifies the metrics
 evaluation_metric = EvaluationMetricParam(
     # The metrics in ``cv_report_metrics`` will be calculated and reported.
-    cv_report_metrics=[EvaluationMetricEnum.MeanAbsolutePercentError.name,
-                       EvaluationMetricEnum.MeanSquaredError.name],
+    cv_report_metrics=[
+        EvaluationMetricEnum.MeanAbsolutePercentError.name,
+        EvaluationMetricEnum.MeanSquaredError.name,
+    ],
     # The ``cv_selection_metric`` will be used to select the best set of hyperparameters.
     # It will be added to ``cv_report_metrics`` if it's not there.
-    cv_selection_metric=EvaluationMetricEnum.MeanAbsolutePercentError.name
+    cv_selection_metric=EvaluationMetricEnum.MeanAbsolutePercentError.name,
 )
 
 # Specifies the forecast configuration.
@@ -118,7 +115,7 @@ evaluation_metric = EvaluationMetricParam(
 config = ForecastConfig(
     model_template=ModelTemplateEnum.SILVERKITE.name,
     model_components_param=model_components,
-    evaluation_metric_param=evaluation_metric
+    evaluation_metric_param=evaluation_metric,
 )
 
 # %%
@@ -171,16 +168,14 @@ config = ForecastConfig(
 
 # Specifies the hyperparameter_budget.
 # Randomly picks 3 sets of hyperparameters.
-computation = ComputationParam(
-    hyperparameter_budget=3
-)
+computation = ComputationParam(hyperparameter_budget=5)
 # Specifies the forecast configuration.
 # You could also specify ``forecast_horizon``, ``metadata_param``, etc.
 config = ForecastConfig(
     model_template=ModelTemplateEnum.SILVERKITE.name,
     model_components_param=model_components,
     evaluation_metric_param=evaluation_metric,
-    computation_param=computation
+    computation_param=computation,
 )
 
 # %%
@@ -218,16 +213,18 @@ seasonality = {
     "quarterly_seasonality": False,
     "monthly_seasonality": False,
     "weekly_seasonality": False,
-    "daily_seasonality": False
+    "daily_seasonality": False,
 }
 
-changepoints = {
-    "changepoints_dict": None
-}
+changepoints = {"changepoints_dict": None}
 
 # Specifies custom parameters
 custom = {
-    "fit_algorithm_dict": {"fit_algorithm": "linear"}
+    "fit_algorithm_dict": [
+        {"fit_algorithm": "linear"},
+        {"fit_algorithm": "gradient_boosting"},
+        {"fit_algorithm": "hist_gradient_boosting"},
+    ]
 }
 
 # Hyperparameter override can be a list of dictionaries.
@@ -236,8 +233,8 @@ override = [
     {},
     {
         "estimator__changepoints_dict": {"method": "auto"},
-        "estimator__fit_algorithm_dict": {"fit_algorithm": "ridge"}
-    }
+        "estimator__fit_algorithm_dict": {"fit_algorithm": "ridge"},
+    },
 ]
 
 # Specifies the model components
@@ -247,15 +244,16 @@ model_components = ModelComponentsParam(
     seasonality=seasonality,
     changepoints=changepoints,
     custom=custom,
-    hyperparameter_override=override
+    hyperparameter_override=override,
 )
 
 # Specifies the evaluation period
 evaluation_period = EvaluationPeriodParam(
-    test_horizon=365,             # leaves 365 days as testing data
-    cv_horizon=365,               # each CV test size is 365 days (same as forecast horizon)
-    cv_max_splits=3,              # 3 folds CV
-    cv_min_train_periods=365 * 4  # uses at least 4 years for training because we have 8 years data
+    test_horizon=365,  # leaves 365 days as testing data
+    cv_horizon=365,  # each CV test size is 365 days (same as forecast horizon)
+    cv_max_splits=3,  # 3 folds CV
+    cv_min_train_periods=365
+    * 4,  # uses at least 4 years for training because we have 8 years data
 )
 
 config = ForecastConfig(
@@ -263,7 +261,7 @@ config = ForecastConfig(
     model_template=ModelTemplateEnum.SILVERKITE.name,
     model_components_param=model_components,
     evaluation_metric_param=evaluation_metric,
-    evaluation_period_param=evaluation_period
+    evaluation_period_param=evaluation_period,
 )
 
 # %%
@@ -286,10 +284,7 @@ config = ForecastConfig(
 
 # Runs the forecast
 forecaster = Forecaster()
-result = forecaster.run_forecast_config(
-    df=df,
-    config=config
-)
+result = forecaster.run_forecast_config(df=df, config=config)
 
 # Summarizes the CV results
 cv_results = summarize_grid_search_results(
@@ -297,7 +292,17 @@ cv_results = summarize_grid_search_results(
     decimals=1,
     # The below saves space in the printed output. Remove to show all available metrics and columns.
     cv_report_metrics=None,
-    column_order=["rank", "mean_test", "split_test", "mean_train", "split_train", "mean_fit_time", "mean_score_time", "params"])
+    column_order=[
+        "rank",
+        "mean_test",
+        "split_test",
+        "mean_train",
+        "split_train",
+        "mean_fit_time",
+        "mean_score_time",
+        "params",
+    ],
+)
 cv_results["params"] = cv_results["params"].astype(str)
 cv_results.set_index("params", drop=True, inplace=True)
 cv_results
