@@ -482,7 +482,7 @@ def weighted_mean_absolute_percentage_error(y_true, y_pred):
     :return: weighted mean absolute percent error
     """
     epsilon = np.finfo(np.float64).eps
-    return np.sum(np.abs(y_pred - y_true)) / np.maximum(np.sum(y_true), epsilon)
+    return 100 * np.sum(np.abs(y_pred - y_true)) / np.maximum(np.sum(y_true), epsilon)
 
 
 @add_finite_filter_to_scorer
