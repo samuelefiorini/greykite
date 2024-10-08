@@ -66,9 +66,7 @@ def all_equal_length(*arrays):
             if length is not None and len(arr) != length:
                 return False
             length = len(arr)
-        except (
-            TypeError
-        ):  # continue if `arr` has no len method. constants and None are excluded from length check
+        except TypeError:  # continue if `arr` has no len method. constants and None are excluded from length check
             pass
     return True
 
@@ -853,6 +851,35 @@ def elementwise_absolute_percent_error(true_val, pred_val):
     return 100 * abs(true_val - pred_val) / abs(true_val)
 
 
+def elementwise_symmetric_absolute_percent_error(true_val, pred_val):
+    """The symmetric absolute percent error between a single true and predicted value.
+
+    Parameters
+    ----------
+    true_val : float
+        True value.
+    pred_val : float
+        Predicted value.
+
+    Returns
+    -------
+    symmetric_absolute_percent_error : float
+        Symmetric Absolute Percent error, abs(true_val - pred_val) / (abs(true_val) + abs(pred_val))
+    """
+    denominator = abs(true_val) + abs(pred_val)
+    if denominator == 0:
+        warnings.warn(
+            "true_val and pred_val are 0. Symmetric absolute percent error is undefined."
+        )
+        return None
+    elif denominator < 1e-8:
+        warnings.warn(
+            "denominator contains very small values. Symmetric absolute percent error is "
+            "very likely highly volatile."
+        )
+    return 100 * abs(true_val - pred_val) / (abs(true_val) + abs(pred_val))
+
+
 def elementwise_quantile(true_val, pred_val, q):
     """The quantile loss between a single true and predicted value.
 
@@ -961,7 +988,13 @@ class ElementwiseEvaluationMetricEnum(Enum):
         "absolute_percent_error",
         [ACTUAL_COL, PREDICTED_COL],
     )
-    """Percent error, abs(true-pred)/abs(true)"""
+    """Absolute percent error, abs(true-pred)/abs(true)"""
+    SymmetricAbsolutePercentError = ElementwiseEvaluationMetric(
+        elementwise_symmetric_absolute_percent_error,
+        "symmetric_absolute_percent_error",
+        [ACTUAL_COL, PREDICTED_COL],
+    )
+    """Symmetric absolute percent error, abs(true - pred)/ (abs(true) + abs(pred))"""
     Quantile80 = ElementwiseEvaluationMetric(
         partial(elementwise_quantile, q=0.80),
         "quantile_loss_80",
